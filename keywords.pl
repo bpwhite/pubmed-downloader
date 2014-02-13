@@ -56,13 +56,44 @@ close (WEBDL);
 ### Ngram calculation
 my $ngram = Lingua::EN::Ngram->new( file => 'data.txt' );
 
+my $exclude_being_verbs = Regexp::Keywords->new();
+
+my $being_verbs = 'was';
+$exclude_being_verbs->prepare($being_verbs);
+
 # calculate t-score; t-score is only available for bigrams
 my $tscore = $ngram->tscore;
+my $num_tscore = 5;
+my $min_tscore_length = 3;
+my $cutoff_tscore_length = 2;
+my $min_total_length = 6;
+
+my $tscore_i = 0;
 foreach ( sort { $$tscore{ $b } <=> $$tscore{ $a } } keys %$tscore ) {
-	print "$$tscore{ $_ }\t" . "$_\n";
-	exit;
+	last if $tscore_i == $num_tscore;
+	my $score = $$tscore{ $_ };
+	my $pair = $_;
+	my @split_pair = split(/ /,$pair);
+	my $first_word = $split_pair[0];
+	my $second_word = $split_pair[1];
+	my $total_length = length($first_word)+length($second_word);
+	
+	if ((length($first_word) < $min_tscore_length) && (length($second_word) < $min_tscore_length)) {
+		next;
+	}
+	if ((length($first_word) < $cutoff_tscore_length) || (length($second_word) < $cutoff_tscore_length)) {
+		next;
+	}
+	next if ($total_length < $min_total_length);
+	next if $exclude_being_verbs->test($first_word);
+	next if $exclude_being_verbs->test($second_word);
+
+	print $score." => ".$pair."\n";
+	
+	$tscore_i++;
 }
 
+exit;
 # list trigrams according to frequency
 my $trigrams = $ngram->ngram( 3 );
 foreach my $trigram ( sort { $$trigrams{ $b } <=> $$trigrams{ $a } } keys %$trigrams ) {
