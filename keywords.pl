@@ -1,7 +1,7 @@
 #!/usr/bin/env perl
 # This script enumerates keywords in a webpage
 
-# Copyright (c) 2013, Bryan White, bpcwhite@gmail.com
+# Copyright (c) 2013, 2014 Bryan White, bpcwhite@gmail.com
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -19,55 +19,55 @@ use strict;
 use warnings;
 use utf8;
 use Lingua::EN::Ngram;
-use Regexp::Keywords;
 use LWP::Simple;
 use HTML::Entities;
 use Text::Unidecode qw(unidecode);
 use HTML::Scrubber;
 use String::Util 'trim';
+use Getopt::Long;
+use SWTFunctions;
 
-my $doc = get 'http://en.wikipedia.org/wiki/Bill_Russell';
+my $url = '';
+my $verbose = 0;
+my $sub_docs = '';
+my $doc1 = '';
+my $doc2 = '';
+my $doc3 = '';
+my $doc4 = '';
 
-# print $doc;
-my @split_doc = split(/\n/,$doc);
+GetOptions ("url=s" 		=> \$url,
+			"verbose"  		=> \$verbose,
+			"sub=s"			=> \$sub_docs,
+			"doc1=s"		=> \$doc1,
+			"doc2=s"		=> \$doc2,
+			"doc3=s"		=> \$doc3,
+			"doc4=s"		=> \$doc4)
+or die("Error in command line arguments\n");
 
-my $head_LN		 	= find_tag('<\/head',	\@split_doc);
-my $body_LN 		= find_tag('<body',		\@split_doc);
-my $body_end_LN		= find_tag('<\/body',	\@split_doc);
+print "Accessing: ".$url."\n";
 
-print $head_LN."\n";
-print $body_LN."\n";
-print $body_end_LN."\n";
+my $output = 'data.txt';
 
-my $scrubber = HTML::Scrubber->new( allow => [ qw[] ] );
-
-open (WEBDL, '>data.txt');
-for (my $line_i = $body_LN; $line_i < $body_end_LN; $line_i++) {
-	# clean line of html tags and attempt to decode utf8 into unicode
-	my $cleaned_line =
-		unidecode(
-			decode_entities(
-				$scrubber->scrub(
-					$split_doc[$line_i])));
-	print WEBDL trim($cleaned_line).' ' if $cleaned_line ne '';
+if($sub_docs == 1) {
+	SWTFunctions::fetch_sub_docs($doc1);
+	exit;
 }
-close (WEBDL);
+SWTFunctions::parse_clean_doc($url, $output);
 
 ### Ngram calculation
 my $ngram = Lingua::EN::Ngram->new( file => 'data.txt' );
 
-my $exclude_being_verbs = Regexp::Keywords->new();
-
-my $being_verbs = 'was';
-$exclude_being_verbs->prepare($being_verbs);
+my @exclusion_list = (	'was','and','the','such','as','of','for','th','this','in','is','on',
+						'that', 'had', 'been');
 
 # calculate t-score; t-score is only available for bigrams
 my $tscore = $ngram->tscore;
-my $num_tscore = 5;
+my $num_tscore = 15;
 my $min_tscore_length = 3;
 my $cutoff_tscore_length = 2;
 my $min_total_length = 6;
 
+print "Processing bigrams...\n\n";
 my $tscore_i = 0;
 foreach ( sort { $$tscore{ $b } <=> $$tscore{ $a } } keys %$tscore ) {
 	last if $tscore_i == $num_tscore;
@@ -81,53 +81,47 @@ foreach ( sort { $$tscore{ $b } <=> $$tscore{ $a } } keys %$tscore ) {
 	if ((length($first_word) < $min_tscore_length) && (length($second_word) < $min_tscore_length)) {
 		next;
 	}
-	if ((length($first_word) < $cutoff_tscore_length) || (length($second_word) < $cutoff_tscore_length)) {
+	if ((length($first_word) <= $cutoff_tscore_length) || (length($second_word) <= $cutoff_tscore_length)) {
 		next;
 	}
 	next if ($total_length < $min_total_length);
-	next if $exclude_being_verbs->test($first_word);
-	next if $exclude_being_verbs->test($second_word);
+	next if($first_word ~~ @exclusion_list);
+	next if($second_word ~~ @exclusion_list);
 
 	print $score." => ".$pair."\n";
 	
 	$tscore_i++;
 }
 
-exit;
-# list trigrams according to frequency
+# list other ngrams according to frequency
+my $ngram_i = 0;
+my $min_ngram_length = 3;
+my $max_ngrams = 15;
+print "\nProcessing ngrams...\n\n";
 my $trigrams = $ngram->ngram( 3 );
 foreach my $trigram ( sort { $$trigrams{ $b } <=> $$trigrams{ $a } } keys %$trigrams ) {
-  print $$trigrams{ $trigram }, "\t$trigram\n";
+	last if $ngram_i == $max_ngrams;
+	my $frequency = $$trigrams{ $trigram };
+	
+	my @split_gram = split(/ /,$trigram);
+	my $gram_fail = 0;
+	foreach my $gram (@split_gram) {
+		$gram_fail++ if length($gram) < $min_ngram_length;
+		$gram_fail++ if $gram ~~ @exclusion_list;
+		$gram_fail++ if length($gram) == 1;
+	}
+	$gram_fail++ if $frequency < 3;
+	next if $gram_fail > 1;
+	
+	print $frequency." => ".$trigram."\n";
+	# print $$trigrams{ $trigram }, "\t$trigram\n";
+	$ngram_i++;
 }
 
 
 exit;
-# Keyword calculations
-my $kw = Regexp::Keywords->new();
-
-my $wanted = 'comedy + ( action , romance ) - thriller';
-$kw->prepare($wanted);
-
-my $movie_tags = 'action,comedy,crime,fantasy,adventure';
-print "Buy ticket!\n" if $kw->test($movie_tags);
 
 # Subs
 ############# 
 
-sub find_tag {
-	my $tag 	= shift;
-	my $doc_ref = shift;
-	
-	my $line_num = 1;
-	foreach my $line (@$doc_ref) {
-	
-		if ($line =~ m/$tag/) {
-			return $line_num;
-		}
-		$line_num++;
-	}
-	
-	if ($line_num == 1) {
-		return undef;
-	}
-}
+
