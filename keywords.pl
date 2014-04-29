@@ -26,30 +26,50 @@ use HTML::Scrubber;
 use String::Util 'trim';
 use Getopt::Long;
 use SWTFunctions;
+use Params::Validate qw(:all);
 
+
+use HTML::LinkExtractor;
+use Data::Dumper;
+
+use Text::Levenshtein::XS qw/distance/;
+
+print distance('free complete genomes','costly partial genome');
+exit;
+
+# my $input = q{If <a href="http://perl.com/"> I am a LINK!!! </a>};
+# my $LX = new HTML::LinkExtractor();
+
+# $LX->parse(\$input);
+
+# print $LX->links->[0]{href}."\n";
+
+# print Dumper($LX->links);
+	
+# exit;
+	
 my $url = '';
 my $verbose = 0;
 my $sub_docs = '';
-my $doc1 = '';
-my $doc2 = '';
-my $doc3 = '';
-my $doc4 = '';
+my $target_keys = '';
 
-GetOptions ("url=s" 		=> \$url,
-			"verbose"  		=> \$verbose,
-			"sub=s"			=> \$sub_docs,
-			"doc1=s"		=> \$doc1,
-			"doc2=s"		=> \$doc2,
-			"doc3=s"		=> \$doc3,
-			"doc4=s"		=> \$doc4)
+GetOptions ("url=s" 			=> \$url,
+			"verbose"  			=> \$verbose,
+			"subdocs=s"			=> \$sub_docs,
+			"target_keys=s"		=> \$target_keys,)
 or die("Error in command line arguments\n");
 
 print "Accessing: ".$url."\n";
 
 my $output = 'data.txt';
+my $num_target_keys = SWTFunctions::count_keys($target_keys);
+print $num_target_keys."\n";
 
-if($sub_docs == 1) {
-	SWTFunctions::fetch_sub_docs($doc1);
+if($sub_docs ne '') {
+	SWTFunctions::fetch_sub_docs(	sub_docs 	=> $sub_docs,
+									target_keys => $target_keys,
+									num_keys 	=> $num_target_keys,
+									num_cur_key => 0);
 	exit;
 }
 SWTFunctions::parse_clean_doc($url, $output);
