@@ -30,7 +30,7 @@ use Params::Validate qw(:all);
 use HTML::LinkExtractor;
 use XML::FeedPP;
 use Class::Date qw(:errors date localdate gmdate now -DateParse -EnvC);
-use Digest::SHA qw(sha1 sha1_hex);
+use Digest::SHA qw(sha1_hex);
 use Data::Dumper;
 
 require Exporter;
