@@ -62,12 +62,14 @@ GetOptions ("url=s" 			=> \$url,
 or die("Error in command line arguments\n");
 
 my @rss_list = (
-				'http://feeds.nature.com/nature/rss/aop',
-				'http://feeds.nature.com/nbt/rss/aop');
+				'http://www.ncbi.nlm.nih.gov/entrez/eutils/erss.cgi?rss_guid=1zYrsILa0sOmmYyQyFZ-shJiy5elic75sxJABMB6Jm3DplqQv7', # nature[journal] 100 entries
+				'http://www.ncbi.nlm.nih.gov/entrez/eutils/erss.cgi?rss_guid=1J__86CjOXsqvrviyWiygdOuThgZaqYd_LuF7SWd01J8kJYAP4', # "nature biotechnology"[journal] 100 entries
+				'http://www.ncbi.nlm.nih.gov/entrez/eutils/erss.cgi?rss_guid=1vWAR2vnuIcrenrcelx0EZlv48tx_WfHEeHDdnkc8cX1CyzsP_', # science[journal] 100 entries
+				);
 
 # SWTFunctions::parse_clean_doc($url, $output);
 foreach my $feed (@rss_list) {
-	SWTFunctions::scrape_rss($url, $feed);
+	SWTFunctions::scrape_rss($feed);
 }
 
 exit;

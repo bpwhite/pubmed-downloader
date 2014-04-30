@@ -30,7 +30,8 @@ use Params::Validate qw(:all);
 use HTML::LinkExtractor;
 use XML::FeedPP;
 use Class::Date qw(:errors date localdate gmdate now -DateParse -EnvC);
-use Digest::SHA qw(sha1 sha1_hex);
+use Digest::SHA qw(sha1_hex);
+use Data::Dumper;
 
 require Exporter;
 my @ISA = qw(Exporter);
@@ -69,7 +70,6 @@ sub parse_clean_doc {
 }
 
 sub scrape_rss {
-	my $url = shift;
 	my $docname = shift;
 	
 	use DateTime;
@@ -81,7 +81,9 @@ sub scrape_rss {
 	my $month = $dt->month;
 	my $day = $dt->day;
 	
+	my $digest = sha1_hex($docname);
 	my $final_path = $year.'/'.$month.'/'.$day;
+	my $final_file = $final_path.'/'.$digest.'.xml';
 	
 	unless (-d $year) {
 		mkdir $year;
@@ -93,17 +95,41 @@ sub scrape_rss {
 		mkdir $final_path;
 	}
 	
-	my $digest = sha1_hex($docname);
-	unless (-e $final_path.'/'.$digest.'.xml') {
-		my $doc = get $url;
+	unless (-e $final_file) {
+		my $doc = get $docname;
 		
-		print "Scraping to: ".$final_path.'/'.$digest.".xml\n";
-		open (SCRAPED, '>'.$final_path.'/'.$digest.'.xml');
+		print "Scraping to: ".$final_file."\n";
+		open (SCRAPED, '>'.$final_file);
 		print SCRAPED $doc;
 		close (SCRAPED);
 	}
-	# chdir($month);
 	
+	my $source = $final_file;
+    my $feed = XML::FeedPP->new( $source );
+	my $scrubber = HTML::Scrubber->new( allow => [ qw[] ] );
+	
+    print "Title: ", $feed->title(), "\n";
+    print "Date: ", $feed->pubDate(), "\n";
+    foreach my $item ( $feed->get_item() ) {
+
+		my $description = $item->description();
+		
+		my @split_desc = split(/\n/,$description);
+		my $num_splits = scalar(@split_desc);
+		
+		my $abstract = '';
+		
+		for(my $i = 0; $i < $num_splits; $i++) {
+			if($split_desc[$i] =~ m/Abstract/) {
+				$abstract = unidecode(decode_entities($scrubber->scrub($split_desc[$i+1])));
+				print "URL: ", $item->link(), "\n";
+				print "Title: ", $item->title(), "\n";
+				print $abstract."\n";
+				# print Dumper($item)."\n";
+			}
+		}
+		
+    }
 }
 
 
