@@ -73,7 +73,9 @@ sub scrape_rss {
 	my $docname = shift;
 	
 	use DateTime;
-	
+
+	my %months = (	'Jan' => 1, 'Feb' => 2, 'Mar' => 3, 'Apr' => 4, 'May' => 5, 'June' => 6, 
+					'July' => 7, 'Aug' => 8, 'Sept' => 9, 'Oct' => 10, 'Nov' => 11, 'Dec' => 12);
 	my $dt = DateTime->now;
 	$dt->set_time_zone('America/Los_Angeles');
 	
@@ -118,17 +120,35 @@ sub scrape_rss {
 		my $num_splits = scalar(@split_desc);
 		
 		my $abstract = '';
-		
+		my $pub_info = '';
+		my $journal = $item->category();
 		for(my $i = 0; $i < $num_splits; $i++) {
-			if($split_desc[$i] =~ m/Abstract/) {
+			if($split_desc[$i] =~ m/<p>$journal/) {
+				$pub_info = unidecode(decode_entities($scrubber->scrub($split_desc[$i])));
+			}
+			if($split_desc[$i] =~ m/<p>Abstract/) {
 				$abstract = unidecode(decode_entities($scrubber->scrub($split_desc[$i+1])));
+				my @split_pub_info = split(/\./,$pub_info);
+				my @split_pub_date = split(/;/,$split_pub_info[1]);
+				my @parse_date 		= split(/ /,$split_pub_date[0]);
+
+				my $pub_date =  DateTime->new(	year => $parse_date[1],
+												month => $months{$parse_date[2]},
+												day => $parse_date[3]);
+												
+				print "Date: ".$pub_date->year."|".$pub_date->month."|".$pub_date->day."\n";
 				print "URL: ", $item->link(), "\n";
 				print "Title: ", $item->title(), "\n";
+				print "Authors: ", $item->author(), "\n";
+				print "Journal: ", $item->category(), "\n";
+				print "GUID: ", $item->guid(), "\n";
+				print $pub_info."\n";
 				print $abstract."\n";
 				# print Dumper($item)."\n";
+				
 			}
 		}
-		
+		last;
     }
 }
 
