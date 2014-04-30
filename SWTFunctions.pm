@@ -28,6 +28,9 @@ use String::Util 'trim';
 use Getopt::Long;
 use Params::Validate qw(:all);
 use HTML::LinkExtractor;
+use XML::FeedPP;
+use Class::Date qw(:errors date localdate gmdate now -DateParse -EnvC);
+use Digest::SHA qw(sha1 sha1_hex);
 
 require Exporter;
 my @ISA = qw(Exporter);
@@ -64,6 +67,59 @@ sub parse_clean_doc {
 	}
 	close (WEBDL);
 }
+
+sub scrape_rss {
+	my $url = shift;
+	my $docname = shift;
+	
+	use DateTime;
+	
+	my $dt = DateTime->now;
+	$dt->set_time_zone('America/Los_Angeles');
+	
+	my $year = $dt->year;
+	my $month = $dt->month;
+	my $day = $dt->day;
+	
+	my $final_path = $year.'/'.$month.'/'.$day;
+	
+	unless (-d $year) {
+		mkdir $year;
+	}
+	unless (-d $year.'/'.$month) {
+		mkdir $year.'/'.$month;
+	}
+	unless (-d $final_path) {
+		mkdir $final_path;
+	}
+	
+	my $digest = sha1_hex($docname);
+	unless (-e $final_path.'/'.$digest.'.xml') {
+		my $doc = get $url;
+		
+		print "Scraping to: ".$final_path.'/'.$digest.".xml\n";
+		open (SCRAPED, '>'.$final_path.'/'.$digest.'.xml');
+		print SCRAPED $doc;
+		close (SCRAPED);
+	}
+	# chdir($month);
+	
+}
+
+
+# my $source = $url;
+# my $feed = XML::FeedPP->new( $source );
+# print "Title: ", $feed->title(), "\n";
+# print "Date: ", $feed->pubDate(), "\n";
+# foreach my $item ( $feed->get_item() ) {
+	# print "Title: ", $item->title(), "\n";
+	# print "URL: ", $item->link(), "\n";
+	
+	
+	# print $doc."\n";
+	# exit;
+	# print "Description: ", $item->description(), "\n";
+# }
 
 sub find_tag {
 	my $tag 	= shift;

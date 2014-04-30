@@ -34,8 +34,8 @@ use Data::Dumper;
 
 use Text::Levenshtein::XS qw/distance/;
 
-print distance('free complete genomes','costly partial genome');
-exit;
+# print distance('free complete genomes','costly partial genome');
+# exit;
 
 # my $input = q{If <a href="http://perl.com/"> I am a LINK!!! </a>};
 # my $LX = new HTML::LinkExtractor();
@@ -52,27 +52,25 @@ my $url = '';
 my $verbose = 0;
 my $sub_docs = '';
 my $target_keys = '';
+my $keywords = '';
 
 GetOptions ("url=s" 			=> \$url,
 			"verbose"  			=> \$verbose,
 			"subdocs=s"			=> \$sub_docs,
-			"target_keys=s"		=> \$target_keys,)
+			"target_keys=s"		=> \$target_keys,
+			"keywords=s"		=> \$keywords)
 or die("Error in command line arguments\n");
 
-print "Accessing: ".$url."\n";
+my @rss_list = (
+				'http://feeds.nature.com/nature/rss/aop',
+				'http://feeds.nature.com/nbt/rss/aop');
 
-my $output = 'data.txt';
-my $num_target_keys = SWTFunctions::count_keys($target_keys);
-print $num_target_keys."\n";
-
-if($sub_docs ne '') {
-	SWTFunctions::fetch_sub_docs(	sub_docs 	=> $sub_docs,
-									target_keys => $target_keys,
-									num_keys 	=> $num_target_keys,
-									num_cur_key => 0);
-	exit;
+# SWTFunctions::parse_clean_doc($url, $output);
+foreach my $feed (@rss_list) {
+	SWTFunctions::scrape_rss($url, $feed);
 }
-SWTFunctions::parse_clean_doc($url, $output);
+
+exit;
 
 ### Ngram calculation
 my $ngram = Lingua::EN::Ngram->new( file => 'data.txt' );
