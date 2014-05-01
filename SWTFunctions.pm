@@ -86,7 +86,9 @@ sub scrape_rss {
 	my $digest = sha1_hex($docname);
 	my $final_path = $year.'/'.$month.'/'.$day;
 	my $final_file = $final_path.'/'.$digest.'.xml';
-	
+	my $parsed_file = $final_path.'/'.$digest.'_parsed.csv';
+
+	# Only scrape once a day.
 	unless (-d $year) {
 		mkdir $year;
 	}
@@ -105,13 +107,13 @@ sub scrape_rss {
 		print SCRAPED $doc;
 		close (SCRAPED);
 	}
+	# Scraping done.
 	
 	my $source = $final_file;
     my $feed = XML::FeedPP->new( $source );
 	my $scrubber = HTML::Scrubber->new( allow => [ qw[] ] );
 	
-    print "Title: ", $feed->title(), "\n";
-    print "Date: ", $feed->pubDate(), "\n";
+	open (PARSED, '>'.$parsed_file);
     foreach my $item ( $feed->get_item() ) {
 
 		my $description = $item->description();
@@ -127,15 +129,16 @@ sub scrape_rss {
 				$pub_info = unidecode(decode_entities($scrubber->scrub($split_desc[$i])));
 			}
 			if($split_desc[$i] =~ m/<p>Abstract/) {
-				$abstract = unidecode(decode_entities($scrubber->scrub($split_desc[$i+1])));
+				$abstract = trim(unidecode(decode_entities($scrubber->scrub($split_desc[$i+1]))));
 				my @split_pub_info = split(/\./,$pub_info);
 				my @split_pub_date = split(/;/,$split_pub_info[1]);
 				my @parse_date 		= split(/ /,$split_pub_date[0]);
-
+				my $day = 1;
+				$day = $parse_date[3] if(defined($parse_date[3]));
 				my $pub_date =  DateTime->new(	year => $parse_date[1],
 												month => $months{$parse_date[2]},
-												day => $parse_date[3]);
-												
+												day => $day);
+				
 				print "Date: ".$pub_date->year."|".$pub_date->month."|".$pub_date->day."\n";
 				print "URL: ", $item->link(), "\n";
 				print "Title: ", $item->title(), "\n";
@@ -145,11 +148,14 @@ sub scrape_rss {
 				print $pub_info."\n";
 				print $abstract."\n";
 				# print Dumper($item)."\n";
+				print PARSED $abstract."\n";
+				print PARSED $item->title()."\n";
 				
 			}
 		}
-		last;
+		# last;
     }
+	close(PARSED);
 }
 
 
