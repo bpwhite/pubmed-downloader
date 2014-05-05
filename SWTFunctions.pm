@@ -32,6 +32,8 @@ use XML::FeedPP;
 use Class::Date qw(:errors date localdate gmdate now -DateParse -EnvC);
 use Digest::SHA qw(sha1_hex);
 use Data::Dumper;
+use XML::Simple;
+
 
 require Exporter;
 my @ISA = qw(Exporter);
@@ -73,7 +75,7 @@ sub scrape_rss {
 		#assemble the esearch URL
 		my $base = 'http://eutils.ncbi.nlm.nih.gov/entrez/eutils/';
 		my $url = $base . "esearch.fcgi?db=$db&term=$query&usehistory=y&retmax=10";
-
+		
 		#post the esearch URL
 		my $output = get($url);
 		print $output."\n";
@@ -95,67 +97,80 @@ sub scrape_rss {
 		### include this code for ESearch-EFetch
 		#assemble the efetch URL
 		$url = $base . "efetch.fcgi?db=$db&query_key=$key&WebEnv=$web";
-		$url .= "&rettype=abstract&retmode=text&retmax=10";
+		$url .= "&rettype=abstract&retmode=xml&retmax=10";
 		print $url."\n";
 
 		#post the efetch URL
 		my $data = get($url);
 		print "$data";
-	exit;
+
 		print "Scraping to: ".$final_file."\n";
 		open (SCRAPED, '>'.$final_file);
 		print SCRAPED $data;
 		close (SCRAPED);
 	}
-	exit;
+
 	# Scraping done.
 	
 	my $source = $final_file;
-    my $feed = XML::FeedPP->new( $source );
+    # my $feed = XML::FeedPP->new( $source );
+	my $xml = new XML::Simple;
+	my $xml_data = $xml->XMLin($source);
+	# print Dumper($xml_data);
+	# exit;
 	my $scrubber = HTML::Scrubber->new( allow => [ qw[] ] );
 	
 	open (PARSED, '>'.$parsed_file);
-    foreach my $item ( $feed->get_item() ) {
+	foreach my $e (@{$xml_data->{PubmedArticle}}) {
+		# print Dumper($e);
+		# print Dumper($e->{MedlineCitation}->{Article}->{Abstract}->{AbstractText}->{content});
+		my $abstract = $e->{MedlineCitation}->{Article}->{Abstract}->{AbstractText}->{content};
+		$abstract =~ s/[^[:ascii:]]+//g;
+		print $abstract."\n";
+		exit;
+	}
+    # foreach my $item ( $feed->get_item() ) {
+		# print Dumper($item);
 
-		my $description = $item->description();
+		# my $description = $item->description();
 		
-		my @split_desc = split(/\n/,$description);
-		my $num_splits = scalar(@split_desc);
+		# my @split_desc = split(/\n/,$description);
+		# my $num_splits = scalar(@split_desc);
 		
-		my $abstract = '';
-		my $pub_info = '';
-		my $journal = $item->category();
-		for(my $i = 0; $i < $num_splits; $i++) {
-			if($split_desc[$i] =~ m/<p>$journal/) {
-				$pub_info = unidecode(decode_entities($scrubber->scrub($split_desc[$i])));
-			}
-			if($split_desc[$i] =~ m/<p>Abstract/) {
-				$abstract = trim(unidecode(decode_entities($scrubber->scrub($split_desc[$i+1]))));
-				my @split_pub_info = split(/\./,$pub_info);
-				my @split_pub_date = split(/;/,$split_pub_info[1]);
-				my @parse_date 		= split(/ /,$split_pub_date[0]);
-				my $day = 1;
-				$day = $parse_date[3] if(defined($parse_date[3]));
-				my $pub_date =  DateTime->new(	year => $parse_date[1],
-												month => $months{$parse_date[2]},
-												day => $day);
+		# my $abstract = '';
+		# my $pub_info = '';
+		# my $journal = $item->category();
+		# for(my $i = 0; $i < $num_splits; $i++) {
+			# if($split_desc[$i] =~ m/<p>$journal/) {
+				# $pub_info = unidecode(decode_entities($scrubber->scrub($split_desc[$i])));
+			# }
+			# if($split_desc[$i] =~ m/<p>Abstract/) {
+				# $abstract = trim(unidecode(decode_entities($scrubber->scrub($split_desc[$i+1]))));
+				# my @split_pub_info = split(/\./,$pub_info);
+				# my @split_pub_date = split(/;/,$split_pub_info[1]);
+				# my @parse_date 		= split(/ /,$split_pub_date[0]);
+				# my $day = 1;
+				# $day = $parse_date[3] if(defined($parse_date[3]));
+				# my $pub_date =  DateTime->new(	year => $parse_date[1],
+												# month => $months{$parse_date[2]},
+												# day => $day);
 				
-				print "Date: ".$pub_date->year."|".$pub_date->month."|".$pub_date->day."\n";
-				print "URL: ", $item->link(), "\n";
-				print "Title: ", $item->title(), "\n";
-				print "Authors: ", $item->author(), "\n";
-				print "Journal: ", $item->category(), "\n";
-				print "GUID: ", $item->guid(), "\n";
-				print $pub_info."\n";
-				print $abstract."\n";
+				# print "Date: ".$pub_date->year."|".$pub_date->month."|".$pub_date->day."\n";
+				# print "URL: ", $item->link(), "\n";
+				# print "Title: ", $item->title(), "\n";
+				# print "Authors: ", $item->author(), "\n";
+				# print "Journal: ", $item->category(), "\n";
+				# print "GUID: ", $item->guid(), "\n";
+				# print $pub_info."\n";
+				# print $abstract."\n";
 				# print Dumper($item)."\n";
-				print PARSED $abstract."\n";
-				print PARSED $item->title()."\n";
+				# print PARSED $abstract."\n";
+				# print PARSED $item->title()."\n";
 				
-			}
-		}
+			# }
+		# }
 		# last;
-    }
+    # }
 	close(PARSED);
 }
 
