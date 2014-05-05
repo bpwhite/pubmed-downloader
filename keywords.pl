@@ -47,9 +47,11 @@ my @rss_list = (
 				);
 
 # SWTFunctions::parse_clean_doc($url, $output);
-foreach my $feed (@rss_list) {
-	SWTFunctions::scrape_rss($feed);
-}
+# foreach my $feed (@rss_list) {
+	SWTFunctions::scrape_rss('nature[journal]');
+# }
+# SWTFunctions::scrape_rss_eutil();
+
 exit;
 
 

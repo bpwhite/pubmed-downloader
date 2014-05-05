@@ -87,7 +87,7 @@ my $ngram_i = 0;
 my $min_ngram_length = 3;
 my $max_ngrams = 15;
 print "\nProcessing ngrams...\n\n";
-my $trigrams = $ngram->ngram( 3 );
+my $trigrams = $ngram->ngram( 4 );
 foreach my $trigram ( sort { $$trigrams{ $b } <=> $$trigrams{ $a } } keys %$trigrams ) {
 	last if $ngram_i == $max_ngrams;
 	my $frequency = $$trigrams{ $trigram };

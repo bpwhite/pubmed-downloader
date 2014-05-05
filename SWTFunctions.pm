@@ -37,40 +37,8 @@ require Exporter;
 my @ISA = qw(Exporter);
 my @EXPORT_OK = qw(parse_clean_doc find_tag fetch_sub_docs) ;
 
-
-sub parse_clean_doc {
-	my $url 	= shift;
-	my $output 	= shift;
-	
-	my $doc = get $url;
-
-	my @split_doc = split(/\n/,$doc);
-
-	my $head_LN		 	= find_tag('<\/head',	\@split_doc);
-	my $body_LN 		= find_tag('<body',		\@split_doc);
-	my $body_end_LN		= find_tag('<\/body',	\@split_doc);
-
-	print $head_LN."\n";
-	print $body_LN."\n";
-	print $body_end_LN."\n";
-
-	my $scrubber = HTML::Scrubber->new( allow => [ qw[] ] );
-
-	open (WEBDL, '>'.$output);
-	for (my $line_i = $body_LN; $line_i < $body_end_LN; $line_i++) {
-		# clean line of html tags and attempt to decode utf8 into unicode
-		my $cleaned_line =
-			unidecode(
-				decode_entities(
-					$scrubber->scrub(
-						$split_doc[$line_i])));
-		print WEBDL trim($cleaned_line).' ' if $cleaned_line ne '';
-	}
-	close (WEBDL);
-}
-
 sub scrape_rss {
-	my $docname = shift;
+	my $query = shift;
 	
 	use DateTime;
 
@@ -83,7 +51,7 @@ sub scrape_rss {
 	my $month = $dt->month;
 	my $day = $dt->day;
 	
-	my $digest = sha1_hex($docname);
+	my $digest = sha1_hex($query);
 	my $final_path = $year.'/'.$month.'/'.$day;
 	my $final_file = $final_path.'/'.$digest.'.xml';
 	my $parsed_file = $final_path.'/'.$digest.'_parsed.csv';
@@ -100,13 +68,46 @@ sub scrape_rss {
 	}
 	
 	unless (-e $final_file) {
-		my $doc = get $docname;
+		my $db = 'pubmed';
+
+		#assemble the esearch URL
+		my $base = 'http://eutils.ncbi.nlm.nih.gov/entrez/eutils/';
+		my $url = $base . "esearch.fcgi?db=$db&term=$query&usehistory=y&retmax=10";
+
+		#post the esearch URL
+		my $output = get($url);
+		print $output."\n";
 		
+		#parse WebEnv and QueryKey
+		my $web = $1 if ($output =~ /<WebEnv>(\S+)<\/WebEnv>/);
+		my $key = $1 if ($output =~ /<QueryKey>(\d+)<\/QueryKey>/);
+		print $web."\n";
+		print $key."\n";
+		
+		### include this code for ESearch-ESummary
+		#assemble the esummary URL
+		# $url = $base . "esummary.fcgi?db=$db&query_key=$key&WebEnv=$web";
+
+		#post the esummary URL
+		# my $docsums = get($url);
+		# print "$docsums";
+
+		### include this code for ESearch-EFetch
+		#assemble the efetch URL
+		$url = $base . "efetch.fcgi?db=$db&query_key=$key&WebEnv=$web";
+		$url .= "&rettype=abstract&retmode=text&retmax=10";
+		print $url."\n";
+
+		#post the efetch URL
+		my $data = get($url);
+		print "$data";
+	exit;
 		print "Scraping to: ".$final_file."\n";
 		open (SCRAPED, '>'.$final_file);
-		print SCRAPED $doc;
+		print SCRAPED $data;
 		close (SCRAPED);
 	}
+	exit;
 	# Scraping done.
 	
 	my $source = $final_file;
@@ -157,7 +158,6 @@ sub scrape_rss {
     }
 	close(PARSED);
 }
-
 
 # my $source = $url;
 # my $feed = XML::FeedPP->new( $source );
