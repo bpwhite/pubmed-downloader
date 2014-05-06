@@ -40,7 +40,14 @@ my @ISA = qw(Exporter);
 my @EXPORT_OK = qw(parse_clean_doc find_tag fetch_sub_docs) ;
 
 sub scrape_rss {
-	my $query = shift;
+	my %p = validate(
+				@_, {
+					query	 	=> 1, # optional string of urls; comma separator
+					num_results	=> 1, # optional string of target keys
+				}
+			);
+	my $query = $p{'query'};
+	my $num_results = $p{'num_results'};
 	
 	use DateTime;
 
@@ -103,7 +110,7 @@ sub scrape_rss {
 		#post the efetch URL
 		my $data = get($url);
 		print "$data";
-
+		$data =~ s/[^[:ascii:]]+//g;
 		print "Scraping to: ".$final_file."\n";
 		open (SCRAPED, '>'.$final_file);
 		print SCRAPED $data;
@@ -113,65 +120,61 @@ sub scrape_rss {
 	# Scraping done.
 	
 	my $source = $final_file;
-    # my $feed = XML::FeedPP->new( $source );
 	my $xml = new XML::Simple;
 	my $xml_data = $xml->XMLin($source);
-	# print Dumper($xml_data);
-	# exit;
 	my $scrubber = HTML::Scrubber->new( allow => [ qw[] ] );
+	
+	my %parsed = ();
 	
 	open (PARSED, '>'.$parsed_file);
 	foreach my $e (@{$xml_data->{PubmedArticle}}) {
 		# print Dumper($e);
-		# print Dumper($e->{MedlineCitation}->{Article}->{Abstract}->{AbstractText}->{content});
-		my $abstract = $e->{MedlineCitation}->{Article}->{Abstract}->{AbstractText}->{content};
-		$abstract =~ s/[^[:ascii:]]+//g;
-		print $abstract."\n";
+		# exit;
+		# check and process abstract
+		my $pubmed_id			= $e->{MedlineCitation}->{PMID}->{content};
+		next if !defined($pubmed_id);
+		my $abstract 			= $e->{MedlineCitation}->{Article}->{Abstract}->{AbstractText}->{content};
+		next if !defined($abstract);
+		$abstract				=~ s/\n//g;
+		$parsed{$pubmed_id}->{'abstract'} 		= $abstract;
+		$parsed{$pubmed_id}->{'EIdType'}		= $e->{MedlineCitation}->{Article}->{ELocationID}->{EIdType}; # type of electronic archive e.g. doi
+		$parsed{$pubmed_id}->{'EIdAccess'}		= $e->{MedlineCitation}->{Article}->{ELocationID}->{content}; # typically doi access point
+		$parsed{$pubmed_id}->{'language'}		= $e->{MedlineCitation}->{Article}->{Language}; # article primary language
+		$parsed{$pubmed_id}->{'owner'}			= $e->{MedlineCitation}->{Article}->{Owner}; # copyright owner?
+		$parsed{$pubmed_id}->{'pubmodel'}		= $e->{MedlineCitation}->{Article}->{PubModel}; # print, electronic, or both?
+		$parsed{$pubmed_id}->{'pubtitle'}		= $e->{MedlineCitation}->{Article}->{ArticleTitle};
+		$parsed{$pubmed_id}->{'pubtype'}		= $e->{MedlineCitation}->{Article}->{PublicationTypeList}->{PublicationType};
+		$parsed{$pubmed_id}->{'journal_abbrv'}	= $e->{MedlineCitation}->{Article}->{Journal}->{ISOAbbreviation};
+		$parsed{$pubmed_id}->{'ISSNType'}		= $e->{MedlineCitation}->{Article}->{Journal}->{ISSN}->{content};
+		$parsed{$pubmed_id}->{'journal_pub_year'}		= $e->{MedlineCitation}->{Article}->{Journal}->{JournalIssue}->{PubDate}->{Year};
+		$parsed{$pubmed_id}->{'journal_pub_month'}		= $e->{MedlineCitation}->{Article}->{Journal}->{JournalIssue}->{PubDate}->{Month};
+		$parsed{$pubmed_id}->{'journal_pub_day'}		= $e->{MedlineCitation}->{Article}->{Journal}->{JournalIssue}->{PubDate}->{Day};
+		$parsed{$pubmed_id}->{'journal_title'}			= $e->{MedlineCitation}->{Article}->{Journal}->{Title};
+		$parsed{$pubmed_id}->{'journal_author_list'}	= $e->{MedlineCitation}->{Article}->{AuthorList}->{Author};
+		
+		$parsed{$pubmed_id}->{'pub_status_access'}		= $e->{PubmedData}->{PublicationStatus};
+		my $pub_date									= $e->{PubmedData}->{History}->{PubMedPubDate};
+		$parsed{$pubmed_id}->{'pub_date'}				= $pub_date;
+		$parsed{$pubmed_id}->{'pub_year'}				= @$pub_date[-1]->{Year};
+		$parsed{$pubmed_id}->{'pub_month'}				= @$pub_date[-1]->{Month};
+		$parsed{$pubmed_id}->{'pub_day'}				= @$pub_date[-1]->{Day};
+		$parsed{$pubmed_id}->{'pub_status'}				= @$pub_date[-1]->{PubStatus};
+		$parsed{$pubmed_id}->{'pub_hour'}				= @$pub_date[-1]->{Hour};
+		$parsed{$pubmed_id}->{'pub_minute'}				= @$pub_date[-1]->{Minute};
+		
+		# print PARSED $pubtitle.",\"".$abstract."\",\n";
+	}
+	close(PARSED);
+	
+	foreach my $key (keys %parsed) {
+		print $key."\n";
+		# print Dumper($parsed{$key})."\n";
+		foreach my $key2 (keys $parsed{$key}) {
+			print $key2."\n";
+			print "\t".$parsed{$key}->{$key2}."\n" if defined($parsed{$key}->{$key2});
+		}
 		exit;
 	}
-    # foreach my $item ( $feed->get_item() ) {
-		# print Dumper($item);
-
-		# my $description = $item->description();
-		
-		# my @split_desc = split(/\n/,$description);
-		# my $num_splits = scalar(@split_desc);
-		
-		# my $abstract = '';
-		# my $pub_info = '';
-		# my $journal = $item->category();
-		# for(my $i = 0; $i < $num_splits; $i++) {
-			# if($split_desc[$i] =~ m/<p>$journal/) {
-				# $pub_info = unidecode(decode_entities($scrubber->scrub($split_desc[$i])));
-			# }
-			# if($split_desc[$i] =~ m/<p>Abstract/) {
-				# $abstract = trim(unidecode(decode_entities($scrubber->scrub($split_desc[$i+1]))));
-				# my @split_pub_info = split(/\./,$pub_info);
-				# my @split_pub_date = split(/;/,$split_pub_info[1]);
-				# my @parse_date 		= split(/ /,$split_pub_date[0]);
-				# my $day = 1;
-				# $day = $parse_date[3] if(defined($parse_date[3]));
-				# my $pub_date =  DateTime->new(	year => $parse_date[1],
-												# month => $months{$parse_date[2]},
-												# day => $day);
-				
-				# print "Date: ".$pub_date->year."|".$pub_date->month."|".$pub_date->day."\n";
-				# print "URL: ", $item->link(), "\n";
-				# print "Title: ", $item->title(), "\n";
-				# print "Authors: ", $item->author(), "\n";
-				# print "Journal: ", $item->category(), "\n";
-				# print "GUID: ", $item->guid(), "\n";
-				# print $pub_info."\n";
-				# print $abstract."\n";
-				# print Dumper($item)."\n";
-				# print PARSED $abstract."\n";
-				# print PARSED $item->title()."\n";
-				
-			# }
-		# }
-		# last;
-    # }
-	close(PARSED);
 }
 
 # my $source = $url;
