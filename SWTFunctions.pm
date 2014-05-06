@@ -126,15 +126,24 @@ sub scrape_rss {
 	
 	my %parsed = ();
 	
-	open (PARSED, '>'.$parsed_file);
+	
 	foreach my $e (@{$xml_data->{PubmedArticle}}) {
-		# print Dumper($e);
+		print Dumper($e);
 		# exit;
 		# check and process abstract
 		my $pubmed_id			= $e->{MedlineCitation}->{PMID}->{content};
 		next if !defined($pubmed_id);
-		my $abstract 			= $e->{MedlineCitation}->{Article}->{Abstract}->{AbstractText}->{content};
-		next if !defined($abstract);
+		# print Dumper($e->{MedlineCitation}->{Article}->{Abstract}->{AbstractText}->{content})."\n";
+		my $abstract = '';
+		if(defined($e->{MedlineCitation}->{Article}->{Abstract}->{AbstractText}->{content})) {
+			print "A\n";
+			$abstract = $e->{MedlineCitation}->{Article}->{Abstract}->{AbstractText}->{content};
+		} elsif(defined($e->{MedlineCitation}->{Article}->{Abstract}->{AbstractText})) {
+			print "B\n";
+			$abstract = $e->{MedlineCitation}->{Article}->{Abstract}->{AbstractText};
+		}
+		print Dumper($abstract)."|\n";
+		next if $abstract eq '';
 		$abstract				=~ s/\n//g;
 		$parsed{$pubmed_id}->{'abstract'} 		= $abstract;
 		$parsed{$pubmed_id}->{'EIdType'}		= $e->{MedlineCitation}->{Article}->{ELocationID}->{EIdType}; # type of electronic archive e.g. doi
@@ -150,31 +159,46 @@ sub scrape_rss {
 		$parsed{$pubmed_id}->{'journal_pub_month'}		= $e->{MedlineCitation}->{Article}->{Journal}->{JournalIssue}->{PubDate}->{Month};
 		$parsed{$pubmed_id}->{'journal_pub_day'}		= $e->{MedlineCitation}->{Article}->{Journal}->{JournalIssue}->{PubDate}->{Day};
 		$parsed{$pubmed_id}->{'journal_title'}			= $e->{MedlineCitation}->{Article}->{Journal}->{Title};
-		$parsed{$pubmed_id}->{'journal_author_list'}	= $e->{MedlineCitation}->{Article}->{AuthorList}->{Author};
-		
+		my $author_list_array							= $e->{MedlineCitation}->{Article}->{AuthorList}->{Author};
+		my $author_list_full = '';
+		my $author_list_abbrv = '';
+		foreach my $author (@$author_list_array) {
+			if(defined($author->{'Affiliation'})) {
+				$author_list_full .= $author->{'LastName'}.";".$author->{'ForeName'}.";".$author->{'Initials'}.";".$author->{'Affiliation'}."|";
+				$author_list_abbrv .= $author->{'LastName'}.", ".$author->{'Initials'}.". ";
+			}
+		}
+		$parsed{$pubmed_id}->{'author_list_full'}			= $author_list_full;
+		$parsed{$pubmed_id}->{'author_list_abbrv'}			= $author_list_abbrv;
+
 		$parsed{$pubmed_id}->{'pub_status_access'}		= $e->{PubmedData}->{PublicationStatus};
 		my $pub_date									= $e->{PubmedData}->{History}->{PubMedPubDate};
-		$parsed{$pubmed_id}->{'pub_date'}				= $pub_date;
 		$parsed{$pubmed_id}->{'pub_year'}				= @$pub_date[-1]->{Year};
 		$parsed{$pubmed_id}->{'pub_month'}				= @$pub_date[-1]->{Month};
 		$parsed{$pubmed_id}->{'pub_day'}				= @$pub_date[-1]->{Day};
 		$parsed{$pubmed_id}->{'pub_status'}				= @$pub_date[-1]->{PubStatus};
 		$parsed{$pubmed_id}->{'pub_hour'}				= @$pub_date[-1]->{Hour};
 		$parsed{$pubmed_id}->{'pub_minute'}				= @$pub_date[-1]->{Minute};
-		
-		# print PARSED $pubtitle.",\"".$abstract."\",\n";
+	}
+	
+	open (PARSED, '>'.$parsed_file);
+	my $line_i = 0;
+	foreach my $article_key (keys %parsed) {
+		print "Parsing... ".$article_key."\n";
+		if ($line_i == 0) {
+			foreach my $key2 (keys $parsed{$article_key}) {
+				print PARSED $key2.",";
+			}
+		}
+		if ($line_i > 0) {
+			foreach my $key2 (keys $parsed{$article_key}) {
+				print PARSED $parsed{$article_key}->{$key2}."," if defined($parsed{$article_key}->{$key2});
+			}
+		}
+		$line_i++;
+		print PARSED "\n";
 	}
 	close(PARSED);
-	
-	foreach my $key (keys %parsed) {
-		print $key."\n";
-		# print Dumper($parsed{$key})."\n";
-		foreach my $key2 (keys $parsed{$key}) {
-			print $key2."\n";
-			print "\t".$parsed{$key}->{$key2}."\n" if defined($parsed{$key}->{$key2});
-		}
-		exit;
-	}
 }
 
 # my $source = $url;
