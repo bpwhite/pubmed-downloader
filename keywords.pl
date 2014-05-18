@@ -35,15 +35,15 @@ GetOptions ("url=s" 			=> \$url,)
 or die("Error in command line arguments\n");
 
 my @query_list = (	'nature[journal]',
-					# 'science[journal]',
-					# 'cell[journal]',
+					'science[journal]',
+					'cell[journal]',
 					# '"The New England Journal of Medicine"[journal]',
-					# '"Nature Genetics[journal]"'
+					'"Nature Genetics[journal]"'
 					);
 
 # SWTFunctions::parse_clean_doc($url, $output);
 foreach my $query (@query_list) {
-	SWTFunctions::scrape_rss(query => $query, num_results => 50);
+	SWTFunctions::scrape_rss(query => $query, num_results => 150);
 }
 # SWTFunctions::scrape_rss_eutil();
 

@@ -81,7 +81,7 @@ sub scrape_rss {
 
 		#assemble the esearch URL
 		my $base = 'http://eutils.ncbi.nlm.nih.gov/entrez/eutils/';
-		my $url = $base . "esearch.fcgi?db=$db&term=$query&usehistory=y&retmax=100";
+		my $url = $base . "esearch.fcgi?db=$db&term=$query&usehistory=y&retmax=$num_results";
 		
 		#post the esearch URL
 		my $output = get($url);
@@ -104,7 +104,7 @@ sub scrape_rss {
 		### include this code for ESearch-EFetch
 		#assemble the efetch URL
 		$url = $base . "efetch.fcgi?db=$db&query_key=$key&WebEnv=$web";
-		$url .= "&rettype=abstract&retmode=xml&retmax=100";
+		$url .= "&rettype=abstract&retmode=xml&retmax=$num_results";
 		print $url."\n";
 
 		#post the efetch URL
@@ -124,13 +124,13 @@ sub scrape_rss {
 	my $xml_data = $xml->XMLin($source);
 	# my $scrubber = HTML::Scrubber->new( allow => [ qw[] ] );
 	
-	my $parsed_ref = journal_selector($query, $xml_data);
+	my $parsed_ref = parse_xml($query, $xml_data);
 	my %parsed = %$parsed_ref;
 
 	open (PARSED, '>'.$parsed_file);
 	my $line_i = 0;
 	foreach my $article_key (keys %parsed) {
-		print "Parsing... ".$article_key."\n";
+		# print "Parsing... ".$article_key."\n";
 		if ($line_i == 0) {
 			foreach my $key2 (keys $parsed{$article_key}) {
 				print PARSED $key2.",";
@@ -138,7 +138,13 @@ sub scrape_rss {
 		}
 		if ($line_i > 0) {
 			foreach my $key2 (keys $parsed{$article_key}) {
-				print PARSED "\"".$parsed{$article_key}->{$key2}."\"," if defined($parsed{$article_key}->{$key2});
+				if (defined($parsed{$article_key}->{$key2})) {
+					$parsed{$article_key}->{$key2} =~ s/\"//g;
+					$parsed{$article_key}->{$key2} =~ s/\n//g;
+					print PARSED "\"".$parsed{$article_key}->{$key2}."\",";
+				} else {
+					print PARSED "\"NA\",";
+				}
 			}
 		}
 		$line_i++;
@@ -160,19 +166,9 @@ sub scrape_rss {
 	# exit;
 	# print "Description: ", $item->description(), "\n";
 # }
-sub journal_selector {
+
+sub parse_xml{
 	my $query = shift;
-	my $xml_data = shift;
-	
-	if($query eq 'nature[journal]') {
-		return parse_nature($xml_data);
-	} else {
-		return parse_nature($xml_data);
-	}
-}
-
-
-sub parse_nature {
 	my $xml_data = shift;
 	my %parsed = ();
 	
@@ -186,7 +182,17 @@ sub parse_nature {
 		my $abstract = '';			
 		if(ref($e->{MedlineCitation}->{Article}->{Abstract}->{'AbstractText'}) eq 'HASH') {
 			$abstract = $e->{MedlineCitation}->{Article}->{Abstract}->{'AbstractText'}->{'content'};
-		} else {
+		} elsif(ref($e->{MedlineCitation}->{Article}->{Abstract}->{'AbstractText'}) eq 'ARRAY') {
+			# print ref($e->{MedlineCitation}->{Article}->{Abstract}->{'AbstractText'})."\n";
+			foreach my $content (@{$e->{MedlineCitation}->{Article}->{Abstract}->{'AbstractText'}}) {
+				# print Dumper($content)."\n";
+				$abstract .= " ".$content->{'content'};
+			}
+			# print Dumper($abstract = $e->{MedlineCitation}->{Article}->{Abstract}->{'AbstractText'})."\n";
+			# print $abstract."\n";
+			# exit;
+		}
+		else {
 			$abstract = $e->{MedlineCitation}->{Article}->{Abstract}->{'AbstractText'};
 		}
 		next if !defined($abstract);
@@ -194,13 +200,21 @@ sub parse_nature {
 		
 		$abstract				=~ s/\n//g;
 		$parsed{$pubmed_id}->{'abstract'} 		= $abstract;
-		$parsed{$pubmed_id}->{'EIdType'}		= $e->{MedlineCitation}->{Article}->{ELocationID}->{EIdType}; # type of electronic archive e.g. doi
-		$parsed{$pubmed_id}->{'EIdAccess'}		= $e->{MedlineCitation}->{Article}->{ELocationID}->{content}; # typically doi access point
+		# edit here for science
+		# $parsed{$pubmed_id}->{'EIdType'}		= $e->{MedlineCitation}->{Article}->{ELocationID}->{EIdType}; # type of electronic archive e.g. doi
+		# $parsed{$pubmed_id}->{'EIdAccess'}		= $e->{MedlineCitation}->{Article}->{ELocationID}->{content}; # typically doi access point
 		$parsed{$pubmed_id}->{'language'}		= $e->{MedlineCitation}->{Article}->{Language}; # article primary language
 		# $parsed{$pubmed_id}->{'owner'}			= $e->{MedlineCitation}->{Article}->{Owner}; # copyright owner?
 		$parsed{$pubmed_id}->{'pubmodel'}		= $e->{MedlineCitation}->{Article}->{PubModel}; # print, electronic, or both?
 		$parsed{$pubmed_id}->{'pubtitle'}		= $e->{MedlineCitation}->{Article}->{ArticleTitle};
-		$parsed{$pubmed_id}->{'pubtype'}		= $e->{MedlineCitation}->{Article}->{PublicationTypeList}->{PublicationType};
+		$parsed{$pubmed_id}->{'pubtitle'}		=~ s/\"//g;
+		
+		$parsed{$pubmed_id}->{'pubtype'}		= '';
+		if(ref($e->{MedlineCitation}->{Article}->{PublicationTypeList}->{PublicationType}) eq 'ARRAY') {
+			$parsed{$pubmed_id}->{'pubtype'}	= $e->{MedlineCitation}->{Article}->{PublicationTypeList}->{PublicationType}[0];
+		} else {
+			$parsed{$pubmed_id}->{'pubtype'}	= $e->{MedlineCitation}->{Article}->{PublicationTypeList}->{PublicationType};
+		}
 		$parsed{$pubmed_id}->{'journal_abbrv'}	= $e->{MedlineCitation}->{Article}->{Journal}->{ISOAbbreviation};
 		$parsed{$pubmed_id}->{'ISSNType'}		= $e->{MedlineCitation}->{Article}->{Journal}->{ISSN}->{content};
 		$parsed{$pubmed_id}->{'journal_pub_year'}		= $e->{MedlineCitation}->{Article}->{Journal}->{JournalIssue}->{PubDate}->{Year};
@@ -212,24 +226,17 @@ sub parse_nature {
 		my $author_list_abbrv = '';
 		# print Dumper($author_list_array);
 		if (ref($author_list_array) eq 'ARRAY') {
-		# print $author_list_array->{'LastName'}."\n";
 			foreach my $author (@$author_list_array) {
 				# print Dumper($author);
-				# print $author."\n";
-				# print $author->{'LastName'}."\n";
 				if(defined($author->{'Affiliation'})) {
 					$author_list_full .= $author->{'LastName'}.";".$author->{'ForeName'}.";".$author->{'Initials'}.";".$author->{'Affiliation'}."|";
 				}
 				if(defined($author->{'LastName'})) {
 					$author_list_abbrv .= $author->{'LastName'}.", ".$author->{'Initials'}.". ";
 				}
-				# exit;
 			}
 		} else {
-				# print Dumper($author_list_array);
-				
-				print $author_list_array->{'LastName'}."\n";
-			
+				# print Dumper($author_list_array);			
 				if(defined($author_list_array->{'Affiliation'})) {
 					$author_list_full .= $author_list_array->{'LastName'}.";".$author_list_array->{'ForeName'}.";".$author_list_array->{'Initials'}.";".$author_list_array->{'Affiliation'}."|";
 				}
@@ -237,19 +244,13 @@ sub parse_nature {
 					$author_list_abbrv .= $author_list_array->{'LastName'}.", ".$author_list_array->{'Initials'}.". ";
 				}
 		}
-		# exit;
-		# elsif (defined($author_list_array)) {
-			# if(defined($author_list_array->{'Affiliation'})) {
-				# $author_list_full .= $author_list_array->{'LastName'}.";"
-									# .$author_list_array->{'ForeName'}.";"
-									# .$author_list_array->{'Initials'}.";"
-									# .$author_list_array->{'Affiliation'}."|";
-			# }
-			# $author_list_abbrv .= $author_list_array->{'LastName'}.", ".$author_list_array->{'Initials'}.". ";
-		# }
+		if($author_list_abbrv eq '') {
+			$author_list_abbrv = $author_list_array->{'CollectiveName'};
+			$author_list_full = $author_list_array->{'CollectiveName'};
+		}
+		
 		$parsed{$pubmed_id}->{'author_list_full'}			= $author_list_full;
 		$parsed{$pubmed_id}->{'author_list_abbrv'}			= $author_list_abbrv;
-
 		$parsed{$pubmed_id}->{'pub_status_access'}		= $e->{PubmedData}->{PublicationStatus};
 		my $pub_date									= $e->{PubmedData}->{History}->{PubMedPubDate};
 		$parsed{$pubmed_id}->{'pub_year'}				= @$pub_date[-1]->{Year};
@@ -262,6 +263,7 @@ sub parse_nature {
 	
 	return \%parsed;
 }
+
 
 sub convert_string_array {
 	my $string = shift;
