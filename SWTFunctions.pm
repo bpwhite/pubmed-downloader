@@ -141,6 +141,7 @@ sub scrape_rss {
 				if (defined($parsed{$article_key}->{$key2})) {
 					$parsed{$article_key}->{$key2} =~ s/\"//g;
 					$parsed{$article_key}->{$key2} =~ s/\n//g;
+					$parsed{$article_key}->{$key2} =~ s/,/_/g;
 					print PARSED "\"".$parsed{$article_key}->{$key2}."\",";
 				} else {
 					print PARSED "\"NA\",";
@@ -152,20 +153,6 @@ sub scrape_rss {
 	}
 	close(PARSED);
 }
-
-# my $source = $url;
-# my $feed = XML::FeedPP->new( $source );
-# print "Title: ", $feed->title(), "\n";
-# print "Date: ", $feed->pubDate(), "\n";
-# foreach my $item ( $feed->get_item() ) {
-	# print "Title: ", $item->title(), "\n";
-	# print "URL: ", $item->link(), "\n";
-	
-	
-	# print $doc."\n";
-	# exit;
-	# print "Description: ", $item->description(), "\n";
-# }
 
 sub parse_xml{
 	my $query = shift;
@@ -183,16 +170,10 @@ sub parse_xml{
 		if(ref($e->{MedlineCitation}->{Article}->{Abstract}->{'AbstractText'}) eq 'HASH') {
 			$abstract = $e->{MedlineCitation}->{Article}->{Abstract}->{'AbstractText'}->{'content'};
 		} elsif(ref($e->{MedlineCitation}->{Article}->{Abstract}->{'AbstractText'}) eq 'ARRAY') {
-			# print ref($e->{MedlineCitation}->{Article}->{Abstract}->{'AbstractText'})."\n";
 			foreach my $content (@{$e->{MedlineCitation}->{Article}->{Abstract}->{'AbstractText'}}) {
-				# print Dumper($content)."\n";
 				$abstract .= " ".$content->{'content'};
 			}
-			# print Dumper($abstract = $e->{MedlineCitation}->{Article}->{Abstract}->{'AbstractText'})."\n";
-			# print $abstract."\n";
-			# exit;
-		}
-		else {
+		} else {
 			$abstract = $e->{MedlineCitation}->{Article}->{Abstract}->{'AbstractText'};
 		}
 		next if !defined($abstract);
@@ -200,7 +181,7 @@ sub parse_xml{
 		
 		$abstract				=~ s/\n//g;
 		$parsed{$pubmed_id}->{'abstract'} 		= $abstract;
-		# edit here for science
+		# print Dumper($e->{MedlineCitation}->{Article})."\n";
 		# $parsed{$pubmed_id}->{'EIdType'}		= $e->{MedlineCitation}->{Article}->{ELocationID}->{EIdType}; # type of electronic archive e.g. doi
 		# $parsed{$pubmed_id}->{'EIdAccess'}		= $e->{MedlineCitation}->{Article}->{ELocationID}->{content}; # typically doi access point
 		$parsed{$pubmed_id}->{'language'}		= $e->{MedlineCitation}->{Article}->{Language}; # article primary language
@@ -228,16 +209,28 @@ sub parse_xml{
 		if (ref($author_list_array) eq 'ARRAY') {
 			foreach my $author (@$author_list_array) {
 				# print Dumper($author);
-				if(defined($author->{'Affiliation'})) {
+				if(		defined($author->{'Affiliation'}) 
+					&& 	defined($author->{'LastName'}) 
+					&& 	defined($author->{'Initials'})
+					&& 	defined($author->{'ForeName'})) {
 					$author_list_full .= $author->{'LastName'}.";".$author->{'ForeName'}.";".$author->{'Initials'}.";".$author->{'Affiliation'}."|";
+				} elsif (	defined($author->{'Affiliation'}) 
+						&& 	defined($author->{'LastName'})
+						&& 	defined($author->{'ForeName'})) {
+					$author_list_full .= $author->{'LastName'}.";".$author->{'ForeName'}.";".$author->{'Affiliation'}."|";
+				} elsif (defined($author->{'LastName'})) {
+					$author_list_full .= $author->{'LastName'}.";";
 				}
-				if(defined($author->{'LastName'})) {
+				
+				if(defined($author->{'LastName'}) && defined($author->{'Initials'})) {
 					$author_list_abbrv .= $author->{'LastName'}.", ".$author->{'Initials'}.". ";
+				} elsif(defined($author->{'LastName'})) {
+					$author_list_abbrv .= $author->{'LastName'};
 				}
 			}
 		} else {
 				# print Dumper($author_list_array);			
-				if(defined($author_list_array->{'Affiliation'})) {
+				if(defined($author_list_array->{'Affiliation'}) && defined($author_list_array->{'LastName'})) {
 					$author_list_full .= $author_list_array->{'LastName'}.";".$author_list_array->{'ForeName'}.";".$author_list_array->{'Initials'}.";".$author_list_array->{'Affiliation'}."|";
 				}
 				if(defined($author_list_array->{'LastName'})) {
@@ -248,11 +241,33 @@ sub parse_xml{
 			$author_list_abbrv = $author_list_array->{'CollectiveName'};
 			$author_list_full = $author_list_array->{'CollectiveName'};
 		}
+		if(defined($author_list_full)) {
+			if(length($author_list_full) > 2000) {
+				$author_list_full = substr($author_list_full, 2000);
+			}
+		}
+		if(defined($author_list_abbrv)) {
+			if(length($author_list_abbrv) > 2000) {
+				$author_list_abbrv = substr($author_list_abbrv, 2000);
+			}
+		}
+		# if($author_list_full eq '') {
+			# print Dumper($author_list_array)."\n";
+			# print ref($author_list_array)."\n";
+		# }
 		
 		$parsed{$pubmed_id}->{'author_list_full'}			= $author_list_full;
 		$parsed{$pubmed_id}->{'author_list_abbrv'}			= $author_list_abbrv;
 		$parsed{$pubmed_id}->{'pub_status_access'}		= $e->{PubmedData}->{PublicationStatus};
 		my $pub_date									= $e->{PubmedData}->{History}->{PubMedPubDate};
+		$parsed{$pubmed_id}->{'pubmed_doi_type'}		= 'NA';
+		$parsed{$pubmed_id}->{'pubmed_doi'}				= 'NA';
+		if(ref($e->{PubmedData}->{ArticleIdList}->{ArticleId}) eq 'ARRAY') {
+			# print Dumper($e->{PubmedData}->{ArticleIdList}->{ArticleId}->[0])."\n";
+			# exit;
+			$parsed{$pubmed_id}->{'pubmed_doi_type'}		= $e->{PubmedData}->{ArticleIdList}->{ArticleId}->[0]->{IdType};
+			$parsed{$pubmed_id}->{'pubmed_doi'}				= $e->{PubmedData}->{ArticleIdList}->{ArticleId}->[0]->{content};
+		}
 		$parsed{$pubmed_id}->{'pub_year'}				= @$pub_date[-1]->{Year};
 		$parsed{$pubmed_id}->{'pub_month'}				= @$pub_date[-1]->{Month};
 		$parsed{$pubmed_id}->{'pub_day'}				= @$pub_date[-1]->{Day};
