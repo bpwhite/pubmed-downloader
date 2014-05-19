@@ -2,19 +2,6 @@
 # Functions for science web tools
 
 # Copyright (c) 2013, 2014 Bryan White, bpcwhite@gmail.com
-
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-
-# You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
 package SWTFunctions;
 use strict;
 use warnings;
@@ -37,7 +24,7 @@ use XML::Simple;
 
 require Exporter;
 my @ISA = qw(Exporter);
-my @EXPORT_OK = qw(parse_clean_doc find_tag fetch_sub_docs) ;
+my @EXPORT_OK = qw(scrape_rss) ;
 
 sub scrape_rss {
 	my %p = validate(
@@ -158,7 +145,11 @@ sub parse_xml{
 	my $query = shift;
 	my $xml_data = shift;
 	my %parsed = ();
-	
+	if(ref($xml_data->{PubmedArticle}) ne 'ARRAY') {
+		# no articles found
+		print $query." found no articles.\n";
+		return \%parsed;
+	}
 	foreach my $e (@{$xml_data->{PubmedArticle}}) {
 		# print Dumper($e);
 		
@@ -171,7 +162,9 @@ sub parse_xml{
 			$abstract = $e->{MedlineCitation}->{Article}->{Abstract}->{'AbstractText'}->{'content'};
 		} elsif(ref($e->{MedlineCitation}->{Article}->{Abstract}->{'AbstractText'}) eq 'ARRAY') {
 			foreach my $content (@{$e->{MedlineCitation}->{Article}->{Abstract}->{'AbstractText'}}) {
-				$abstract .= " ".$content->{'content'};
+				if(defined($content->{'content'})) {
+					$abstract .= " ".$content->{'content'};
+				}
 			}
 		} else {
 			$abstract = $e->{MedlineCitation}->{Article}->{Abstract}->{'AbstractText'};
@@ -237,7 +230,9 @@ sub parse_xml{
 					$author_list_abbrv .= $author_list_array->{'LastName'}.", ".$author_list_array->{'Initials'}.". ";
 				}
 		}
-		if($author_list_abbrv eq '') {
+		# print Dumper($author_list_array)."\n";
+		# print ref($author_list_array)."\n";
+		if($author_list_abbrv eq '' && ref($author_list_array) eq 'HASH') {
 			$author_list_abbrv = $author_list_array->{'CollectiveName'};
 			$author_list_full = $author_list_array->{'CollectiveName'};
 		}
@@ -280,8 +275,8 @@ sub parse_xml{
 }
 
 
-sub convert_string_array {
-	my $string = shift;
-	my @split_string = split(//,$string);
-	return \@split_string;
+
+sub scrape_sciam {
+
+
 }
