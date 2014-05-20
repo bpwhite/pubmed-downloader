@@ -13,21 +13,17 @@ use Text::Unidecode qw(unidecode);
 use HTML::Scrubber;
 use String::Util 'trim';
 use Getopt::Long;
-use SWTFunctions;
 use Params::Validate qw(:all);
 use Data::Dumper;
 
 use SWT::RSS;
+use SWT::Functions;
 
 my $feed_list = '';
-my $start_scrape	= '';
-my $stop_scrape	= '';
 
-GetOptions ("feed_list=s" 			=> \$feed_list,
-			"start_scrape=s"		=> \$start_scrape,
-			"stop_scrape=s"			=> \$stop_scrape)
+GetOptions ("feed_list=s" 			=> \$feed_list,)
 or die("Error in command line arguments\n");
 
-SWT::RSS::scrape_feed($feed_list, $start_scrape, $stop_scrape);
+SWT::RSS::scrape_feed($feed_list);
 
 exit;

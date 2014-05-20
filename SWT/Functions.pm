@@ -24,7 +24,7 @@ use DateTime;
 
 require Exporter;
 my @ISA = qw(Exporter);
-my @EXPORT_OK = qw(scrape_rss) ;
+my @EXPORT_OK = qw(scrape_rss make_download_path) ;
 
 sub scrape_rss {
 	my %p = validate(
