@@ -21,7 +21,6 @@ use Digest::SHA qw(sha1_hex);
 use Data::Dumper;
 use XML::Simple;
 
-
 require Exporter;
 my @ISA = qw(Exporter);
 my @EXPORT_OK = qw(scrape_rss) ;
@@ -274,9 +273,4 @@ sub parse_xml{
 	return \%parsed;
 }
 
-
-
-sub scrape_sciam {
-
-
-}
+1;

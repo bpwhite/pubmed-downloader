@@ -20,7 +20,24 @@ use SWTFunctions;
 use SWTSql;
 
 my $dbh = SWTSql::mysql_connect();
+my $rebuild = 0;
+my $purge = 0;
+my $populate = 0;
 
-SWTSql::create_pubmed_table($dbh);
+$rebuild = 0;
+if($rebuild == 1) {
+	SWTSql::delete_pubmed_table($dbh);
+	SWTSql::delete_web_news_table($dbh);
+	SWTSql::create_pubmed_table($dbh);
+	SWTSql::create_web_news_table($dbh);
+}
 
+if($purge == 1) {
+	SWTSql::delete_pubmed_table($dbh);
+	SWTSql::delete_web_news_table($dbh);
+}
+
+if($populate == 1) {
+
+}
 exit;
