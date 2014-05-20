@@ -2,7 +2,7 @@
 # Functions for science web tools
 
 # Copyright (c) 2013, 2014 Bryan White, bpcwhite@gmail.com
-package SWTFunctions;
+package SWT::Functions;
 use strict;
 use warnings;
 use LWP::Simple;
@@ -20,6 +20,7 @@ use Class::Date qw(:errors date localdate gmdate now -DateParse -EnvC);
 use Digest::SHA qw(sha1_hex);
 use Data::Dumper;
 use XML::Simple;
+use DateTime;
 
 require Exporter;
 my @ISA = qw(Exporter);
@@ -34,34 +35,12 @@ sub scrape_rss {
 			);
 	my $query = $p{'query'};
 	my $num_results = $p{'num_results'};
-	
-	use DateTime;
-
-	my %months = (	'Jan' => 1, 'Feb' => 2, 'Mar' => 3, 'Apr' => 4, 'May' => 5, 'June' => 6, 
-					'July' => 7, 'Aug' => 8, 'Sept' => 9, 'Oct' => 10, 'Nov' => 11, 'Dec' => 12);
-	my $dt = DateTime->now;
-	$dt->set_time_zone('America/Los_Angeles');
-	
-	my $year = $dt->year;
-	my $month = $dt->month;
-	my $day = $dt->day;
-	
 	my $digest = sha1_hex($query);
-	my $final_path = $year.'/'.$month.'/'.$day;
-	my $final_file = $final_path.'/'.$digest.'.xml';
-	my $parsed_file = $final_path.'/'.$digest.'_parsed.csv';
 
-	# Only scrape once a day.
-	unless (-d $year) {
-		mkdir $year;
-	}
-	unless (-d $year.'/'.$month) {
-		mkdir $year.'/'.$month;
-	}
-	unless (-d $final_path) {
-		mkdir $final_path;
-	}
-	
+	my $final_path = make_download_path($digest);
+	my $parsed_file = $final_path.'/'.$digest.'_parsed.csv';
+	my $final_file = $final_path.'/'.$digest.'.xml';
+
 	unless (-e $final_file) {
 		my $db = 'pubmed';
 
@@ -273,4 +252,31 @@ sub parse_xml{
 	return \%parsed;
 }
 
+sub make_download_path {
+	my $name = shift;
+	
+	my %months = (	'Jan' => 1, 'Feb' => 2, 'Mar' => 3, 'Apr' => 4, 'May' => 5, 'June' => 6, 
+					'July' => 7, 'Aug' => 8, 'Sept' => 9, 'Oct' => 10, 'Nov' => 11, 'Dec' => 12);
+	my $dt = DateTime->now;
+	$dt->set_time_zone('America/Los_Angeles');
+	
+	my $year = $dt->year;
+	my $month = $dt->month;
+	my $day = $dt->day;
+	
+
+	my $final_path = $year.'/'.$month.'/'.$day;
+
+	# Only scrape once a day.
+	unless (-d $year) {
+		mkdir $year;
+	}
+	unless (-d $year.'/'.$month) {
+		mkdir $year.'/'.$month;
+	}
+	unless (-d $final_path) {
+		mkdir $final_path;
+	}
+	return $final_path;
+}
 1;

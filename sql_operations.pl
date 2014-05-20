@@ -16,8 +16,8 @@ use Getopt::Long;
 use Params::Validate qw(:all);
 use Data::Dumper;
 
-use SWTFunctions;
-use SWTSql;
+use SWT::Functions;
+use SWT::SQL;
 
 my $dbh = SWTSql::mysql_connect();
 my $rebuild = 0;

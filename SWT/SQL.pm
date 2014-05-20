@@ -2,7 +2,7 @@
 # Functions for science web tools
 
 # Copyright (c) 2013, 2014 Bryan White, bpcwhite@gmail.com
-package SWTSql;
+package SWT::Sql;
 
 use DBI;
 use strict;
