@@ -29,29 +29,30 @@ sub mysql_connect {
 sub create_pubmed_table {
 	my $dbh = shift;
 	my $sth = $dbh->prepare("CREATE TABLE pm_abstracts (
-            pm_abstract_id int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY,
-			pm_abstract TEXT,
-			pm_author_list_abbrv VARCHAR(255),
-			pm_author_list_full VARCHAR(255),
-			pm_ISSNType VARCHAR(255),
-			pm_journal_abbrv VARCHAR(255),
-			pm_journal_pub_day VARCHAR(255),
-			pm_journal_pub_month VARCHAR(255),
-			pm_journal_pub_year VARCHAR(255),
-			pm_journal_title VARCHAR(255),
-			pm_language VARCHAR(255),
-			pm_pub_day VARCHAR(255),
-			pm_pub_hour VARCHAR(255),
-			pm_pub_minute VARCHAR(255),
-			pm_pub_month VARCHAR(255),
-			pm_pub_status VARCHAR(255),
-			pm_pub_status_access VARCHAR(255),
-			pm_pub_year VARCHAR(255),
-			pm_pubmed_doi VARCHAR(255),
-			pm_pubmed_doi_type VARCHAR(255),
-			pm_pubmodel VARCHAR(255),
-			pm_pubtitle VARCHAR(255),
-			pm_pubtype VARCHAR(255)
+							pm_abstract_id int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY,
+							pm_abstract TEXT,
+							pm_author_list_abbrv VARCHAR(255),
+							pm_author_list_full VARCHAR(255),
+							pm_ISSNType VARCHAR(255),
+							pm_journal_abbrv VARCHAR(255),
+							pm_journal_pub_day VARCHAR(255),
+							pm_journal_pub_month VARCHAR(255),
+							pm_journal_pub_year VARCHAR(255),
+							pm_journal_title VARCHAR(255),
+							pm_language VARCHAR(255),
+							pm_pub_day VARCHAR(255),
+							pm_pub_hour VARCHAR(255),
+							pm_pub_minute VARCHAR(255),
+							pm_pub_month VARCHAR(255),
+							pm_pub_status VARCHAR(255),
+							pm_pub_status_access VARCHAR(255),
+							pm_pub_year VARCHAR(255),
+							pm_pubmed_doi VARCHAR(255),
+							pm_pubmed_doi_type VARCHAR(255),
+							pm_pubmed_id VARCHAR(255),
+							pm_pubmodel VARCHAR(255),
+							pm_pubtitle VARCHAR(255),
+							pm_pubtype VARCHAR(255)
             ) ENGINE=InnoDB;");
 	eval { $sth->execute() or warn $DBI::errstr; };
 	warn $@ if $@;
@@ -89,17 +90,6 @@ sub create_web_news_table {
 	eval { $sth->execute() or warn $DBI::errstr; };
 	warn $@ if $@;
 	$sth->finish();
-}
-
-sub insert_web_news {
-	my $dbh = shift;
-	my $values = shift;
-	
-	my $sth = $dbh->prepare("INSERT INTO web_news 
-							(web_news_id, web_news_feed, 
-							web_news_feed_link, web_news_link, 
-							web_news_title, web_news_description) 
-							VALUES (".$values.");");
 }
 
 sub delete_web_news_table {

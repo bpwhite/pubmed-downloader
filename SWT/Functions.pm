@@ -134,7 +134,7 @@ sub parse_xml{
 		# check and process abstract
 		my $pubmed_id			= $e->{MedlineCitation}->{PMID}->{content};
 		next if !defined($pubmed_id);
-		
+	
 		my $abstract = '';			
 		if(ref($e->{MedlineCitation}->{Article}->{Abstract}->{'AbstractText'}) eq 'HASH') {
 			$abstract = $e->{MedlineCitation}->{Article}->{Abstract}->{'AbstractText'}->{'content'};
@@ -149,30 +149,30 @@ sub parse_xml{
 		}
 		next if !defined($abstract);
 		next if $abstract eq '';
-		
+		$parsed{$pubmed_id}->{'pm_pubmed_id'} = $pubmed_id;
 		$abstract				=~ s/\n//g;
-		$parsed{$pubmed_id}->{'abstract'} 		= $abstract;
+		$parsed{$pubmed_id}->{'pm_abstract'} 		= $abstract;
 		# print Dumper($e->{MedlineCitation}->{Article})."\n";
 		# $parsed{$pubmed_id}->{'EIdType'}		= $e->{MedlineCitation}->{Article}->{ELocationID}->{EIdType}; # type of electronic archive e.g. doi
 		# $parsed{$pubmed_id}->{'EIdAccess'}		= $e->{MedlineCitation}->{Article}->{ELocationID}->{content}; # typically doi access point
-		$parsed{$pubmed_id}->{'language'}		= $e->{MedlineCitation}->{Article}->{Language}; # article primary language
+		$parsed{$pubmed_id}->{'pm_language'}		= $e->{MedlineCitation}->{Article}->{Language}; # article primary language
 		# $parsed{$pubmed_id}->{'owner'}			= $e->{MedlineCitation}->{Article}->{Owner}; # copyright owner?
-		$parsed{$pubmed_id}->{'pubmodel'}		= $e->{MedlineCitation}->{Article}->{PubModel}; # print, electronic, or both?
-		$parsed{$pubmed_id}->{'pubtitle'}		= $e->{MedlineCitation}->{Article}->{ArticleTitle};
-		$parsed{$pubmed_id}->{'pubtitle'}		=~ s/\"//g;
+		$parsed{$pubmed_id}->{'pm_pubmodel'}		= $e->{MedlineCitation}->{Article}->{PubModel}; # print, electronic, or both?
+		$parsed{$pubmed_id}->{'pm_pubtitle'}		= $e->{MedlineCitation}->{Article}->{ArticleTitle};
+		$parsed{$pubmed_id}->{'pm_pubtitle'}		=~ s/\"//g;
 		
-		$parsed{$pubmed_id}->{'pubtype'}		= '';
+		$parsed{$pubmed_id}->{'pm_pubtype'}		= '';
 		if(ref($e->{MedlineCitation}->{Article}->{PublicationTypeList}->{PublicationType}) eq 'ARRAY') {
-			$parsed{$pubmed_id}->{'pubtype'}	= $e->{MedlineCitation}->{Article}->{PublicationTypeList}->{PublicationType}[0];
+			$parsed{$pubmed_id}->{'pm_pubtype'}	= $e->{MedlineCitation}->{Article}->{PublicationTypeList}->{PublicationType}[0];
 		} else {
-			$parsed{$pubmed_id}->{'pubtype'}	= $e->{MedlineCitation}->{Article}->{PublicationTypeList}->{PublicationType};
+			$parsed{$pubmed_id}->{'pm_pubtype'}	= $e->{MedlineCitation}->{Article}->{PublicationTypeList}->{PublicationType};
 		}
-		$parsed{$pubmed_id}->{'journal_abbrv'}	= $e->{MedlineCitation}->{Article}->{Journal}->{ISOAbbreviation};
-		$parsed{$pubmed_id}->{'ISSNType'}		= $e->{MedlineCitation}->{Article}->{Journal}->{ISSN}->{content};
-		$parsed{$pubmed_id}->{'journal_pub_year'}		= $e->{MedlineCitation}->{Article}->{Journal}->{JournalIssue}->{PubDate}->{Year};
-		$parsed{$pubmed_id}->{'journal_pub_month'}		= $e->{MedlineCitation}->{Article}->{Journal}->{JournalIssue}->{PubDate}->{Month};
-		$parsed{$pubmed_id}->{'journal_pub_day'}		= $e->{MedlineCitation}->{Article}->{Journal}->{JournalIssue}->{PubDate}->{Day};
-		$parsed{$pubmed_id}->{'journal_title'}			= $e->{MedlineCitation}->{Article}->{Journal}->{Title};
+		$parsed{$pubmed_id}->{'pm_journal_abbrv'}	= $e->{MedlineCitation}->{Article}->{Journal}->{ISOAbbreviation};
+		$parsed{$pubmed_id}->{'pm_ISSNType'}		= $e->{MedlineCitation}->{Article}->{Journal}->{ISSN}->{content};
+		$parsed{$pubmed_id}->{'pm_journal_pub_year'}		= $e->{MedlineCitation}->{Article}->{Journal}->{JournalIssue}->{PubDate}->{Year};
+		$parsed{$pubmed_id}->{'pm_journal_pub_month'}		= $e->{MedlineCitation}->{Article}->{Journal}->{JournalIssue}->{PubDate}->{Month};
+		$parsed{$pubmed_id}->{'pm_journal_pub_day'}		= $e->{MedlineCitation}->{Article}->{Journal}->{JournalIssue}->{PubDate}->{Day};
+		$parsed{$pubmed_id}->{'pm_journal_title'}			= $e->{MedlineCitation}->{Article}->{Journal}->{Title};
 		my $author_list_array							= $e->{MedlineCitation}->{Article}->{AuthorList}->{Author};
 		my $author_list_full = '';
 		my $author_list_abbrv = '';
@@ -229,24 +229,24 @@ sub parse_xml{
 			# print ref($author_list_array)."\n";
 		# }
 		
-		$parsed{$pubmed_id}->{'author_list_full'}			= $author_list_full;
-		$parsed{$pubmed_id}->{'author_list_abbrv'}			= $author_list_abbrv;
-		$parsed{$pubmed_id}->{'pub_status_access'}		= $e->{PubmedData}->{PublicationStatus};
+		$parsed{$pubmed_id}->{'pm_author_list_full'}			= $author_list_full;
+		$parsed{$pubmed_id}->{'pm_author_list_abbrv'}			= $author_list_abbrv;
+		$parsed{$pubmed_id}->{'pm_pub_status_access'}		= $e->{PubmedData}->{PublicationStatus};
 		my $pub_date									= $e->{PubmedData}->{History}->{PubMedPubDate};
-		$parsed{$pubmed_id}->{'pubmed_doi_type'}		= 'NA';
-		$parsed{$pubmed_id}->{'pubmed_doi'}				= 'NA';
+		$parsed{$pubmed_id}->{'pm_pubmed_doi_type'}		= 'NA';
+		$parsed{$pubmed_id}->{'pm_pubmed_doi'}				= 'NA';
 		if(ref($e->{PubmedData}->{ArticleIdList}->{ArticleId}) eq 'ARRAY') {
 			# print Dumper($e->{PubmedData}->{ArticleIdList}->{ArticleId}->[0])."\n";
 			# exit;
-			$parsed{$pubmed_id}->{'pubmed_doi_type'}		= $e->{PubmedData}->{ArticleIdList}->{ArticleId}->[0]->{IdType};
-			$parsed{$pubmed_id}->{'pubmed_doi'}				= $e->{PubmedData}->{ArticleIdList}->{ArticleId}->[0]->{content};
+			$parsed{$pubmed_id}->{'pm_pubmed_doi_type'}		= $e->{PubmedData}->{ArticleIdList}->{ArticleId}->[0]->{IdType};
+			$parsed{$pubmed_id}->{'pm_pubmed_doi'}				= $e->{PubmedData}->{ArticleIdList}->{ArticleId}->[0]->{content};
 		}
-		$parsed{$pubmed_id}->{'pub_year'}				= @$pub_date[-1]->{Year};
-		$parsed{$pubmed_id}->{'pub_month'}				= @$pub_date[-1]->{Month};
-		$parsed{$pubmed_id}->{'pub_day'}				= @$pub_date[-1]->{Day};
-		$parsed{$pubmed_id}->{'pub_status'}				= @$pub_date[-1]->{PubStatus};
-		$parsed{$pubmed_id}->{'pub_hour'}				= @$pub_date[-1]->{Hour};
-		$parsed{$pubmed_id}->{'pub_minute'}				= @$pub_date[-1]->{Minute};
+		$parsed{$pubmed_id}->{'pm_pub_year'}				= @$pub_date[-1]->{Year};
+		$parsed{$pubmed_id}->{'pm_pub_month'}				= @$pub_date[-1]->{Month};
+		$parsed{$pubmed_id}->{'pm_pub_day'}				= @$pub_date[-1]->{Day};
+		$parsed{$pubmed_id}->{'pm_pub_status'}				= @$pub_date[-1]->{PubStatus};
+		$parsed{$pubmed_id}->{'pm_pub_hour'}				= @$pub_date[-1]->{Hour};
+		$parsed{$pubmed_id}->{'pm_pub_minute'}				= @$pub_date[-1]->{Minute};
 	}
 	
 	return \%parsed;

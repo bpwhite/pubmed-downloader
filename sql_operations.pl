@@ -23,10 +23,10 @@ my $dbh = SWT::SQL::mysql_connect();
 my $rebuild = 0;
 my $purge = 0;
 my $populate = 0;
-my $build = 1;
+my $build = 0;
 
-$rebuild = 1;
-$build = 0;
+$rebuild = 0;
+$build = 1;
 
 if($rebuild == 1) {
 	SWT::SQL::delete_pubmed_table($dbh);
