@@ -19,25 +19,33 @@ use Data::Dumper;
 use SWT::Functions;
 use SWT::SQL;
 
-my $dbh = SWTSql::mysql_connect();
+my $dbh = SWT::SQL::mysql_connect();
 my $rebuild = 0;
 my $purge = 0;
 my $populate = 0;
+my $build = 1;
 
-$rebuild = 0;
+$rebuild = 1;
+$build = 0;
+
 if($rebuild == 1) {
-	SWTSql::delete_pubmed_table($dbh);
-	SWTSql::delete_web_news_table($dbh);
-	SWTSql::create_pubmed_table($dbh);
-	SWTSql::create_web_news_table($dbh);
+	SWT::SQL::delete_pubmed_table($dbh);
+	SWT::SQL::delete_web_news_table($dbh);
+	SWT::SQL::create_pubmed_table($dbh);
+	SWT::SQL::create_web_news_table($dbh);
 }
 
 if($purge == 1) {
-	SWTSql::delete_pubmed_table($dbh);
-	SWTSql::delete_web_news_table($dbh);
+	SWT::SQL::delete_pubmed_table($dbh);
+	SWT::SQL::delete_web_news_table($dbh);
+}
+
+if($build == 1) {
+	SWT::SQL::create_pubmed_table($dbh);
+	SWT::SQL::create_web_news_table($dbh);
 }
 
 if($populate == 1) {
-
+	
 }
 exit;

@@ -37,7 +37,7 @@ sub scrape_rss {
 	my $num_results = $p{'num_results'};
 	my $digest = sha1_hex($query);
 
-	my $final_path = make_download_path($digest);
+	my $final_path = make_download_path();
 	my $parsed_file = $final_path.'/'.$digest.'_parsed.csv';
 	my $final_file = $final_path.'/'.$digest.'.xml';
 
@@ -252,9 +252,7 @@ sub parse_xml{
 	return \%parsed;
 }
 
-sub make_download_path {
-	my $name = shift;
-	
+sub make_download_path {	
 	my %months = (	'Jan' => 1, 'Feb' => 2, 'Mar' => 3, 'Apr' => 4, 'May' => 5, 'June' => 6, 
 					'July' => 7, 'Aug' => 8, 'Sept' => 9, 'Oct' => 10, 'Nov' => 11, 'Dec' => 12);
 	my $dt = DateTime->now;

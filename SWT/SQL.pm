@@ -2,7 +2,7 @@
 # Functions for science web tools
 
 # Copyright (c) 2013, 2014 Bryan White, bpcwhite@gmail.com
-package SWT::Sql;
+package SWT::SQL;
 
 use DBI;
 use strict;
@@ -80,13 +80,26 @@ sub create_web_news_table {
 	my $dbh = shift;
 	my $sth = $dbh->prepare("CREATE TABLE web_news (
 		web_news_id int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY,
-		web_news_summary VARCHAR(255),
+		web_news_feed VARCHAR(255),
+		web_news_feed_link VARCHAR(255),
+		web_news_link VARCHAR(255),
 		web_news_title VARCHAR(255),
-		web_news_source VARCHAR(255)
+		web_news_description TEXT
 		) ENGINE=InnoDB;");
 	eval { $sth->execute() or warn $DBI::errstr; };
 	warn $@ if $@;
 	$sth->finish();
+}
+
+sub insert_web_news {
+	my $dbh = shift;
+	my $values = shift;
+	
+	my $sth = $dbh->prepare("INSERT INTO web_news 
+							(web_news_id, web_news_feed, 
+							web_news_feed_link, web_news_link, 
+							web_news_title, web_news_description) 
+							VALUES (".$values.");");
 }
 
 sub delete_web_news_table {
@@ -97,4 +110,14 @@ sub delete_web_news_table {
 	$sth->finish();
 }
 
+sub create_user_table {
+	my $dbh = shift;
+	my $sth = $dbh->prepare("CREATE TABLE IF NOT EXISTS users (
+	  userID int(11) NOT NULL AUTO_INCREMENT,
+	  username varchar(50) NOT NULL,
+	  password varbinary(250) NOT NULL,
+	  email varchar(50) NOT NULL,
+	  PRIMARY KEY (userID,username)
+	) ENGINE=InnoDB  DEFAULT CHARSET=latin1 AUTO_INCREMENT=6 ;");
+}
 1;

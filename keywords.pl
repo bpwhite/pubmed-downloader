@@ -89,7 +89,7 @@ my @query_list = (	'nature[journal]',
 
 # SWTFunctions::parse_clean_doc($url, $output);
 foreach my $query (@query_list) {
-	SWT::Functions::scrape_rss(query => $query, num_results => 150);
+	SWT::Functions::scrape_rss(query => $query, num_results => 50);
 }
 # SWTFunctions::scrape_rss_eutil();
 
