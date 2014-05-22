@@ -24,6 +24,8 @@ my $feed_list = '';
 GetOptions ("feed_list=s" 			=> \$feed_list,)
 or die("Error in command line arguments\n");
 
-SWT::RSS::scrape_feed($feed_list);
+my $file = SWT::RSS::scrape_feed($feed_list);
+
+# SWT::RSS::fix_lines($file);
 
 exit;

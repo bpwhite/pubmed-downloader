@@ -24,10 +24,16 @@ my $rebuild = 0;
 my $purge = 0;
 my $populate = 0;
 my $build = 0;
+my $rebuild_web_news = 0;
 
 $rebuild = 0;
-$build = 1;
+$build = 0;
+$rebuild_web_news = 1;
 
+if($rebuild_web_news == 1) {
+	SWT::SQL::delete_web_news_table($dbh);
+	SWT::SQL::create_web_news_table($dbh);
+}
 if($rebuild == 1) {
 	SWT::SQL::delete_pubmed_table($dbh);
 	SWT::SQL::delete_web_news_table($dbh);

@@ -28,5 +28,36 @@ my @rss_files = glob "$path/*rss*.csv";
   # $rss_files[$_] =~ s/\.csv$//;
 # }
 foreach my $file (@rss_files) {
-	print $file."\n";
+	# print $file."\n";
+	open (CONTENT, '<'.$file);
+	my @content = <CONTENT>;
+	close(CONTENT);
+	my $line_i = 0;
+	my $table_headers = '';
+	foreach my $line (@content) {
+		if($line_i == 0) {
+			$table_headers = $line;
+			$table_headers =~ s/\n//g;
+			$table_headers =~ s/,$//;
+			# print $table_headers."\n";
+			$line_i++;
+			next;
+		} else {
+			$line =~ s/\n//g; # remove newlines
+			$line =~ s/,$//; # remove trailing commas
+			# $line =~ s/\"//g; # strip quotes
+			# $line =~ s/,/\",\"/g; # add quotes back in
+			# $line = "\"".$line."\"";
+			# print $line."\n";
+			# exit;
+			my $sql_query = "INSERT INTO web_news (".$table_headers.") VALUES (".$line.");";
+			# print $sql_query."\n";
+			my $sth = $dbh->prepare($sql_query);
+			eval { $sth->execute() or die $DBI::errstr; };
+			die $@ if $@;
+			$sth->finish();
+		}
+		
+		$line_i++;
+	}
 }

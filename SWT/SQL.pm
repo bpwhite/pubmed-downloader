@@ -81,10 +81,10 @@ sub create_web_news_table {
 	my $dbh = shift;
 	my $sth = $dbh->prepare("CREATE TABLE web_news (
 		web_news_id int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY,
-		web_news_feed VARCHAR(255),
+		web_news_feed_title VARCHAR(255),
 		web_news_feed_link VARCHAR(255),
 		web_news_link VARCHAR(255),
-		web_news_title VARCHAR(255),
+		web_news_article_title VARCHAR(255),
 		web_news_description TEXT
 		) ENGINE=InnoDB;");
 	eval { $sth->execute() or warn $DBI::errstr; };

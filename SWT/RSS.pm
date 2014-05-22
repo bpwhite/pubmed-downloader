@@ -53,7 +53,7 @@ sub scrape_feed {
 			my @split_feed = split(/,/,$feed_line);
 			my $feed_source = $split_feed[1];
 			
-			my $scrubber = HTML::Scrubber->new( allow => [ qw[ ] ] );
+			
 			
 			my $feed = '';
 			eval { $feed = XML::FeedPP->new( $feed_source ); };
@@ -64,6 +64,7 @@ sub scrape_feed {
 				next;
 			}
 			# print "Feed Title: ", $feed->title(), "\n";
+			
 			# print "Date: ", $feed->pubDate(), "\n";
 			my $item_i = 0;
 			my $max_items = 100;
@@ -79,26 +80,25 @@ sub scrape_feed {
 				# $parsed{$title}->{'article'} = $article;
 				
 				my $title = $item->title();
-				
-				$parsed{$title}->{'title'} = $title;
-				
+				$parsed{$title}->{'web_news_feed_title'} = $feed->title();
+				$parsed{$title}->{'web_news_article_title'} = $title;
+				$parsed{$title}->{'web_news_feed_link'} = $feed_source;
 				my $description = 'NA';
+				my $scrubber = HTML::Scrubber->new( allow => [ qw[ ] ] );
 				if (defined($item->description())) {
 					$description = $item->description();
 				}
-				my @split_description = split(/\n/,$description);
-				$description = $split_description[0];
+				$description =~ s/\n//g;
+				$description =~ s/\r\n//g;
+				$description =~ s/\r//g;
 				$description = $scrubber->scrub($description);
 				$description =~ s/&quot;/\"/g; # html quote
 				$description =~ s/&mdash;/\-/g; # html dash
 				$description =~ s/&hellip;/\.\.\./g; # ellipses
 				$description =~ s/&#39;/'/g; # apostrophe/single quote
-				# if($description eq '') {
-					# print Dumper($item);
-					# exit;
-				# }
-				$parsed{$title}->{'description'} = $description;
-				$parsed{$title}->{'link'}	= $item->link();
+				$description =~ s/\s+$//;
+				$parsed{$title}->{'web_news_description'} = $description;
+				$parsed{$title}->{'web_news_link'}	= $item->link();
 				# $parsed{$title}->{'article'} = $article;
 				# if($article eq '') {
 					# print "No article. ".$feed_source."\n";
@@ -120,8 +120,10 @@ sub scrape_feed {
 			if ($line_i > 0) {
 				foreach my $key2 (keys $parsed{$article_key}) {
 					if (defined($parsed{$article_key}->{$key2})) {
+						# $parsed{$article_key}->{$key2} =~ s/;//g;
 						$parsed{$article_key}->{$key2} =~ s/\"//g;
 						$parsed{$article_key}->{$key2} =~ s/\n//g;
+						# print Dumper($parsed{$article_key}->{$key2})."\n";
 						# $parsed{$article_key}->{$key2} =~ s/,/_/g;
 						print SCRAPED "\"".$parsed{$article_key}->{$key2}."\",";
 					} else {
@@ -136,6 +138,18 @@ sub scrape_feed {
 		
 	} else {
 		print "Already scraped $final_file today.\n";
+	}
+	return $final_file;
+}
+
+sub fix_lines {
+	my $file = shift;
+	open (SCRAPED, '<'.$file);
+	my @scraped = <SCRAPED>;
+	close(SCRAPED);
+	foreach my $line (@scraped) {
+		# $line =~ s/\|/\n/g;
+		print $line;
 	}
 	
 }
