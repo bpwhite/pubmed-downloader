@@ -106,7 +106,7 @@ sub scrape_rss {
 				if (defined($parsed{$article_key}->{$key2})) {
 					$parsed{$article_key}->{$key2} =~ s/\"//g;
 					$parsed{$article_key}->{$key2} =~ s/\n//g;
-					$parsed{$article_key}->{$key2} =~ s/,/_/g;
+					# $parsed{$article_key}->{$key2} =~ s/,/_/g;
 					print PARSED "\"".$parsed{$article_key}->{$key2}."\",";
 				} else {
 					print PARSED "\"NA\",";
@@ -129,8 +129,8 @@ sub parse_xml{
 		return \%parsed;
 	}
 	foreach my $e (@{$xml_data->{PubmedArticle}}) {
-		# print Dumper($e);
-		
+		print Dumper($e);
+		# exit;
 		# check and process abstract
 		my $pubmed_id			= $e->{MedlineCitation}->{PMID}->{content};
 		next if !defined($pubmed_id);
@@ -160,6 +160,7 @@ sub parse_xml{
 		$parsed{$pubmed_id}->{'pm_pubmodel'}		= $e->{MedlineCitation}->{Article}->{PubModel}; # print, electronic, or both?
 		$parsed{$pubmed_id}->{'pm_pubtitle'}		= $e->{MedlineCitation}->{Article}->{ArticleTitle};
 		$parsed{$pubmed_id}->{'pm_pubtitle'}		=~ s/\"//g;
+		$parsed{$pubmed_id}->{'pm_pagination'}		= $e->{MedlineCitation}->{Article}->{Pagination}->{MedlinePgn};
 		
 		$parsed{$pubmed_id}->{'pm_pubtype'}		= '';
 		if(ref($e->{MedlineCitation}->{Article}->{PublicationTypeList}->{PublicationType}) eq 'ARRAY') {
@@ -167,13 +168,15 @@ sub parse_xml{
 		} else {
 			$parsed{$pubmed_id}->{'pm_pubtype'}	= $e->{MedlineCitation}->{Article}->{PublicationTypeList}->{PublicationType};
 		}
-		$parsed{$pubmed_id}->{'pm_journal_abbrv'}	= $e->{MedlineCitation}->{Article}->{Journal}->{ISOAbbreviation};
-		$parsed{$pubmed_id}->{'pm_ISSNType'}		= $e->{MedlineCitation}->{Article}->{Journal}->{ISSN}->{content};
+		$parsed{$pubmed_id}->{'pm_journal_abbrv'}			= $e->{MedlineCitation}->{Article}->{Journal}->{ISOAbbreviation};
+		$parsed{$pubmed_id}->{'pm_ISSNType'}				= $e->{MedlineCitation}->{Article}->{Journal}->{ISSN}->{content};
 		$parsed{$pubmed_id}->{'pm_journal_pub_year'}		= $e->{MedlineCitation}->{Article}->{Journal}->{JournalIssue}->{PubDate}->{Year};
 		$parsed{$pubmed_id}->{'pm_journal_pub_month'}		= $e->{MedlineCitation}->{Article}->{Journal}->{JournalIssue}->{PubDate}->{Month};
-		$parsed{$pubmed_id}->{'pm_journal_pub_day'}		= $e->{MedlineCitation}->{Article}->{Journal}->{JournalIssue}->{PubDate}->{Day};
+		$parsed{$pubmed_id}->{'pm_journal_pub_day'}			= $e->{MedlineCitation}->{Article}->{Journal}->{JournalIssue}->{PubDate}->{Day};
+		$parsed{$pubmed_id}->{'pm_journal_issue'}			= $e->{MedlineCitation}->{Article}->{Journal}->{JournalIssue}->{Issue};
+		$parsed{$pubmed_id}->{'pm_journal_volume'}			= $e->{MedlineCitation}->{Article}->{Journal}->{JournalIssue}->{Volume};
 		$parsed{$pubmed_id}->{'pm_journal_title'}			= $e->{MedlineCitation}->{Article}->{Journal}->{Title};
-		my $author_list_array							= $e->{MedlineCitation}->{Article}->{AuthorList}->{Author};
+		my $author_list_array								= $e->{MedlineCitation}->{Article}->{AuthorList}->{Author};
 		my $author_list_full = '';
 		my $author_list_abbrv = '';
 		# print Dumper($author_list_array);
@@ -194,7 +197,7 @@ sub parse_xml{
 				}
 				
 				if(defined($author->{'LastName'}) && defined($author->{'Initials'})) {
-					$author_list_abbrv .= $author->{'LastName'}.", ".$author->{'Initials'}.". ";
+					$author_list_abbrv .= $author->{'LastName'}." ".$author->{'Initials'}.", ";
 				} elsif(defined($author->{'LastName'})) {
 					$author_list_abbrv .= $author->{'LastName'};
 				}
@@ -205,7 +208,7 @@ sub parse_xml{
 					$author_list_full .= $author_list_array->{'LastName'}.";".$author_list_array->{'ForeName'}.";".$author_list_array->{'Initials'}.";".$author_list_array->{'Affiliation'}."|";
 				}
 				if(defined($author_list_array->{'LastName'})) {
-					$author_list_abbrv .= $author_list_array->{'LastName'}.", ".$author_list_array->{'Initials'}.". ";
+					$author_list_abbrv .= $author_list_array->{'LastName'}." ".$author_list_array->{'Initials'}.", ";
 				}
 		}
 		# print Dumper($author_list_array)."\n";

@@ -52,7 +52,10 @@ sub create_pubmed_table {
 							pm_pubmed_id VARCHAR(255),
 							pm_pubmodel VARCHAR(255),
 							pm_pubtitle VARCHAR(255),
-							pm_pubtype VARCHAR(255)
+							pm_pubtype VARCHAR(255),
+							pm_pagination VARCHAR(255),
+							pm_journal_issue VARCHAR(255),
+							pm_journal_volume VARCHAR(255)
             ) ENGINE=InnoDB;");
 	eval { $sth->execute() or warn $DBI::errstr; };
 	warn $@ if $@;
@@ -109,5 +112,18 @@ sub create_user_table {
 	  email varchar(50) NOT NULL,
 	  PRIMARY KEY (userID,username)
 	) ENGINE=InnoDB  DEFAULT CHARSET=latin1 AUTO_INCREMENT=6 ;");
+}
+
+sub create_ngrams_table {
+	my $dbh = shift;
+	my $sth = $dbh->prepare("CREATE TABLE ng_ngrams (
+							ng_id int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY,
+							ng_phrase VARCHAR(255),
+							ng_size int(3),
+							ng_date 
+            ) ENGINE=InnoDB;");
+	eval { $sth->execute() or warn $DBI::errstr; };
+	warn $@ if $@;
+	$sth->finish();
 }
 1;
