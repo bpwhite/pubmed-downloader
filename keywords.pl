@@ -18,8 +18,11 @@ use Data::Dumper;
 
 use SWT::Functions;
 my $url = '';
-
-GetOptions ("url=s" 			=> \$url,)
+my $num_articles = '50';
+my $path = '';
+GetOptions ("url=s" 			=> \$url,
+			"num_articles=s"	=> \$num_articles,
+			"path=s"			=> \$path)
 or die("Error in command line arguments\n");
 
 my @query_list = (	'nature[journal]',
@@ -89,7 +92,7 @@ my @query_list = (	'nature[journal]',
 
 # SWTFunctions::parse_clean_doc($url, $output);
 foreach my $query (@query_list) {
-	SWT::Functions::scrape_rss(query => $query, num_results => 350);
+	SWT::Functions::scrape_rss(query => $query, num_results => $num_articles, path => $path);
 }
 # SWTFunctions::scrape_rss_eutil();
 

@@ -23,6 +23,10 @@ my $dbh = SWT::SQL::mysql_connect();
 
 my $path = SWT::Functions::make_download_path();
 
+GetOptions ("path=s" 			=> \$path,)
+or die("Error in command line arguments\n");
+
+
 my @rss_files = glob "$path/*rss*.csv";
 # for (0..$#rss_files){
   # $rss_files[$_] =~ s/\.csv$//;
@@ -53,8 +57,7 @@ foreach my $file (@rss_files) {
 			my $sql_query = "INSERT INTO web_news (".$table_headers.") VALUES (".$line.");";
 			# print $sql_query."\n";
 			my $sth = $dbh->prepare($sql_query);
-			eval { $sth->execute() or die $DBI::errstr; };
-			die $@ if $@;
+			eval { $sth->execute() or warn $DBI::errstr; };
 			$sth->finish();
 		}
 		

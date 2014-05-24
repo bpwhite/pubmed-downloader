@@ -80,6 +80,12 @@ sub scrape_feed {
 				# $parsed{$title}->{'article'} = $article;
 				
 				my $title = $item->title();
+				$title =~ s/&#39;/'/g; # apostrophe/single quote
+				$title =~ s/&quot;/\"/g; # html quote
+				$title =~ s/&mdash;/\-/g; # html dash
+				$title =~ s/&hellip;/\.\.\./g; # ellipses
+				$title =~ s/&#39;/'/g; # apostrophe/single quote
+				$title =~ s/&rsquo;/'/g;
 				$parsed{$title}->{'web_news_feed_title'} = $feed->title();
 				$parsed{$title}->{'web_news_article_title'} = $title;
 				$parsed{$title}->{'web_news_feed_link'} = $feed_source;
@@ -97,6 +103,9 @@ sub scrape_feed {
 				$description =~ s/&hellip;/\.\.\./g; # ellipses
 				$description =~ s/&#39;/'/g; # apostrophe/single quote
 				$description =~ s/\s+$//;
+				$description =~ s/&nbsp;/ /g;
+				$description =~ s/&rsquo;/'/g;
+				
 				$parsed{$title}->{'web_news_description'} = $description;
 				$parsed{$title}->{'web_news_link'}	= $item->link();
 				# $parsed{$title}->{'article'} = $article;

@@ -31,16 +31,24 @@ sub scrape_rss {
 				@_, {
 					query	 	=> 1, # optional string of urls; comma separator
 					num_results	=> 1, # optional string of target keys
+					path		=> 1, # optional path
 				}
 			);
 	my $query = $p{'query'};
 	my $num_results = $p{'num_results'};
+	my $input_path = $p{'path'};
+	
 	my $digest = sha1_hex($query);
 
-	my $final_path = make_download_path();
+	my $final_path = '';
+	if ($input_path eq '') {
+		$final_path = make_download_path();
+	} else {
+		$final_path = $input_path;
+	}
 	my $parsed_file = $final_path.'/'.$digest.'_parsed.csv';
 	my $final_file = $final_path.'/'.$digest.'.xml';
-
+	
 	unless (-e $final_file) {
 		my $db = 'pubmed';
 
@@ -129,7 +137,7 @@ sub parse_xml{
 		return \%parsed;
 	}
 	foreach my $e (@{$xml_data->{PubmedArticle}}) {
-		print Dumper($e);
+		# print Dumper($e);
 		# exit;
 		# check and process abstract
 		my $pubmed_id			= $e->{MedlineCitation}->{PMID}->{content};
@@ -160,7 +168,11 @@ sub parse_xml{
 		$parsed{$pubmed_id}->{'pm_pubmodel'}		= $e->{MedlineCitation}->{Article}->{PubModel}; # print, electronic, or both?
 		$parsed{$pubmed_id}->{'pm_pubtitle'}		= $e->{MedlineCitation}->{Article}->{ArticleTitle};
 		$parsed{$pubmed_id}->{'pm_pubtitle'}		=~ s/\"//g;
-		$parsed{$pubmed_id}->{'pm_pagination'}		= $e->{MedlineCitation}->{Article}->{Pagination}->{MedlinePgn};
+		if(ref($e->{MedlineCitation}->{Article}->{Pagination}->{MedlinePgn}) eq 'HASH') {
+			$parsed{$pubmed_id}->{'pm_pagination'} = 'NA';
+		} else {
+			$parsed{$pubmed_id}->{'pm_pagination'} = $e->{MedlineCitation}->{Article}->{Pagination}->{MedlinePgn};
+		}
 		
 		$parsed{$pubmed_id}->{'pm_pubtype'}		= '';
 		if(ref($e->{MedlineCitation}->{Article}->{PublicationTypeList}->{PublicationType}) eq 'ARRAY') {
@@ -264,7 +276,6 @@ sub make_download_path {
 	my $year = $dt->year;
 	my $month = $dt->month;
 	my $day = $dt->day;
-	
 
 	my $final_path = $year.'/'.$month.'/'.$day;
 
