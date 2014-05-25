@@ -114,6 +114,7 @@ sub scrape_rss {
 				if (defined($parsed{$article_key}->{$key2})) {
 					$parsed{$article_key}->{$key2} =~ s/\"//g;
 					$parsed{$article_key}->{$key2} =~ s/\n//g;
+					$parsed{$article_key}->{$key2} = decode_entities($parsed{$article_key}->{$key2});
 					# $parsed{$article_key}->{$key2} =~ s/,/_/g;
 					print PARSED "\"".$parsed{$article_key}->{$key2}."\",";
 				} else {

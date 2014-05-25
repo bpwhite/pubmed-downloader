@@ -80,12 +80,12 @@ sub scrape_feed {
 				# $parsed{$title}->{'article'} = $article;
 				
 				my $title = $item->title();
-				$title =~ s/&#39;/'/g; # apostrophe/single quote
-				$title =~ s/&quot;/\"/g; # html quote
-				$title =~ s/&mdash;/\-/g; # html dash
-				$title =~ s/&hellip;/\.\.\./g; # ellipses
-				$title =~ s/&#39;/'/g; # apostrophe/single quote
-				$title =~ s/&rsquo;/'/g;
+				# $title =~ s/&#39;/'/g; # apostrophe/single quote
+				# $title =~ s/&quot;/\"/g; # html quote
+				# $title =~ s/&mdash;/\-/g; # html dash
+				# $title =~ s/&hellip;/\.\.\./g; # ellipses
+				# $title =~ s/&#39;/'/g; # apostrophe/single quote
+				# $title =~ s/&rsquo;/'/g;
 				$parsed{$title}->{'web_news_feed_title'} = $feed->title();
 				$parsed{$title}->{'web_news_article_title'} = $title;
 				$parsed{$title}->{'web_news_feed_link'} = $feed_source;
@@ -98,13 +98,13 @@ sub scrape_feed {
 				$description =~ s/\r\n//g;
 				$description =~ s/\r//g;
 				$description = $scrubber->scrub($description);
-				$description =~ s/&quot;/\"/g; # html quote
-				$description =~ s/&mdash;/\-/g; # html dash
-				$description =~ s/&hellip;/\.\.\./g; # ellipses
-				$description =~ s/&#39;/'/g; # apostrophe/single quote
-				$description =~ s/\s+$//;
-				$description =~ s/&nbsp;/ /g;
-				$description =~ s/&rsquo;/'/g;
+				# $description =~ s/&quot;/\"/g; # html quote
+				# $description =~ s/&mdash;/\-/g; # html dash
+				# $description =~ s/&hellip;/\.\.\./g; # ellipses
+				# $description =~ s/&#39;/'/g; # apostrophe/single quote
+				# $description =~ s/\s+$//;
+				# $description =~ s/&nbsp;/ /g;
+				# $description =~ s/&rsquo;/'/g;
 				
 				$parsed{$title}->{'web_news_description'} = $description;
 				$parsed{$title}->{'web_news_link'}	= $item->link();
@@ -132,6 +132,8 @@ sub scrape_feed {
 						# $parsed{$article_key}->{$key2} =~ s/;//g;
 						$parsed{$article_key}->{$key2} =~ s/\"//g;
 						$parsed{$article_key}->{$key2} =~ s/\n//g;
+						$parsed{$article_key}->{$key2} =~ s/[^[:ascii:]]+//g;
+						$parsed{$article_key}->{$key2} = decode_entities($parsed{$article_key}->{$key2});
 						# print Dumper($parsed{$article_key}->{$key2})."\n";
 						# $parsed{$article_key}->{$key2} =~ s/,/_/g;
 						print SCRAPED "\"".$parsed{$article_key}->{$key2}."\",";
