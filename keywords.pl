@@ -87,7 +87,12 @@ my @query_list = (	'nature[journal]',
 					'"Oncogene"[journal]',
 					'"NeuroImage"[journal]',
 					'"Bioresource Technology"[journal]',
-					'"Genome Research"[journal]'
+					'"Genome Research"[journal]',
+					'"nature biotechnology"[journal]',
+					'"ecology"[journal]',
+					'"Ecology Letters"[journal]',
+					'"PLoS Computational Biology"[journal]',
+					'"Molecular Ecology"[journal]'
 					);
 
 # SWTFunctions::parse_clean_doc($url, $output);

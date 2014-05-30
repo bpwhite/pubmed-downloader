@@ -24,11 +24,17 @@ my $table_name = '';
 my $field_name	= '';
 my $ngram_size = '3';
 my $max_ngrams = '50';
+my $insert = 0;
+my $daterange = '';
+my $datefield = '';
 
 GetOptions ("table=s" 			=> \$table_name,
 			"field=s"			=> \$field_name,
 			"nsize=s"			=> \$ngram_size,
-			"max_ngrams=s"		=> \$max_ngrams)
+			"max_ngrams=s"		=> \$max_ngrams,
+			"insert=s"			=> \$insert,
+			"range=s"			=> \$daterange,
+			"datefield=s"		=> \$datefield)
 or die("Error in command line arguments\n");
 
 
@@ -48,8 +54,15 @@ $exclusion_sth->finish();
 
 my @articles_list = ('the','a','an','some');
 
-# Check pm_abstracts
-my $sql_query = "SELECT * FROM ".$table_name." ;";
+# Check data table
+my $sql_query = '';
+if($daterange ne '') {
+	my @split_range = split(/,/,$daterange);
+	$sql_query = "SELECT * FROM ".$table_name." WHERE  ".$datefield." between '".$split_range[0]."' AND '".$split_range[1]."' ;";
+} else {
+	$sql_query = "SELECT * FROM ".$table_name." ;";
+}
+
 # print $sql_query."\n";
 my $sth = $dbh->prepare($sql_query);
 $sth->execute();
@@ -75,13 +88,15 @@ my $ngram = Lingua::EN::Ngram->new( file => $filename );
 # list other ngrams according to frequency
 my $ngram_i = 0;
 my $min_ngram_length = 3;
-
+my $max_frequency = 0;
 print "\nProcessing ngrams...\n\n";
 my $trigrams = $ngram->ngram( $ngram_size );
 foreach my $trigram ( sort { $$trigrams{ $b } <=> $$trigrams{ $a } } keys %$trigrams ) {
 	last if $ngram_i == $max_ngrams;
 	my $frequency = $$trigrams{ $trigram };
+
 	
+
 	my $gram_fail = 0;
 	my @split_gram = split(/ /,$trigram);
 	foreach my $split (@split_gram) {
@@ -93,16 +108,23 @@ foreach my $trigram ( sort { $$trigrams{ $b } <=> $$trigrams{ $a } } keys %$trig
 	$gram_fail++ if $frequency < 3;
 	next if $gram_fail >= 1;
 	
-	my $insert_sql_query = "INSERT INTO ng_ngrams (ng_phrase,ng_size,ng_freq,ng_table,ng_field) VALUES (\"".
-							$trigram."\",\"".$ngram_size."\",\"".$frequency."\",\"".$table_name."\",\"".$field_name."\");";
-	# print $insert_sql_query."\n";
-	# exit;
-	my $insert_sth = $dbh->prepare($insert_sql_query);
-	eval { $insert_sth->execute() or warn $DBI::errstr; };
-	warn $@ if $@;
-	$insert_sth->finish();
-	print $frequency." => ".$trigram."\n";
-	# print $$trigrams{ $trigram }, "\t$trigram\n";
+	if ($frequency > $max_frequency) {
+		$max_frequency = $frequency;
+	}
+	my $relative_frequency = int($frequency/$max_frequency*100);
+	
+	if($insert == 1) {
+		my $insert_sql_query = "INSERT INTO ng_ngrams (ng_phrase,ng_size,ng_freq,ng_table,ng_field) VALUES (\"".
+								$trigram."\",\"".$ngram_size."\",\"".$relative_frequency."\",\"".$table_name."\",\"".$field_name."\");";
+
+		my $insert_sth = $dbh->prepare($insert_sql_query);
+		eval { $insert_sth->execute() or warn $DBI::errstr; };
+		warn $@ if $@;
+		$insert_sth->finish();
+	}
+	# print $frequency." => ".$max_frequency."\n";
+	print $relative_frequency." => ".$trigram."\n";
+	
 	$ngram_i++;
 }
 

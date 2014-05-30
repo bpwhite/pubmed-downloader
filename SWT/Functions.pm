@@ -37,7 +37,7 @@ sub scrape_rss {
 	my $query = $p{'query'};
 	my $num_results = $p{'num_results'};
 	my $input_path = $p{'path'};
-	
+	my $max_tries = 2;
 	my $digest = sha1_hex($query);
 
 	my $final_path = '';
@@ -79,15 +79,28 @@ sub scrape_rss {
 		$url = $base . "efetch.fcgi?db=$db&query_key=$key&WebEnv=$web";
 		$url .= "&rettype=abstract&retmode=xml&retmax=$num_results";
 		print $url."\n";
-
-		#post the efetch URL
-		my $data = get($url);
-		# print "$data";
-		$data =~ s/[^[:ascii:]]+//g;
-		print "Scraping to: ".$final_file."\n";
-		open (SCRAPED, '>'.$final_file);
-		print SCRAPED $data;
-		close (SCRAPED);
+		
+		my $num_tries = 1;
+		eval {
+			#post the efetch URL
+			my $data = get($url);
+			$num_tries++;
+			open (SCRAPED, '>'.$final_file);
+			if(defined($data)) {
+				# print "$data";
+				$data =~ s/[^[:ascii:]]+//g;
+				print "Scraping to: ".$final_file."\n";
+				print SCRAPED $data;
+			} else {
+				print SCRAPED '';
+			}
+			close (SCRAPED);
+		
+		};
+		if($@) {
+			print "Retrying due to : ".$@."\n";
+			next if $num_tries >= $max_tries;
+		}
 	}
 
 	# Scraping done.
@@ -132,6 +145,8 @@ sub parse_xml{
 	my $query = shift;
 	my $xml_data = shift;
 	my %parsed = ();
+	my %months = (	'Jan' => 1, 'Feb' => 2, 'Mar' => 3, 'Apr' => 4, 'May' => 5, 'June' => 6, 'Jun' => 6,
+					'July' => 7, 'Jul' => 7, 'Aug' => 8, 'Sept' => 9, 'Sep' => 9, 'Oct' => 10, 'Nov' => 11, 'Dec' => 12);
 	if(ref($xml_data->{PubmedArticle}) ne 'ARRAY') {
 		# no articles found
 		print $query." found no articles.\n";
@@ -259,7 +274,7 @@ sub parse_xml{
 		}
 		$parsed{$pubmed_id}->{'pm_pub_year'}				= @$pub_date[-1]->{Year};
 		$parsed{$pubmed_id}->{'pm_pub_month'}				= @$pub_date[-1]->{Month};
-		$parsed{$pubmed_id}->{'pm_pub_day'}				= @$pub_date[-1]->{Day};
+		$parsed{$pubmed_id}->{'pm_pub_day'}					= @$pub_date[-1]->{Day};
 		$parsed{$pubmed_id}->{'pm_pub_status'}				= @$pub_date[-1]->{PubStatus};
 		$parsed{$pubmed_id}->{'pm_pub_hour'}				= @$pub_date[-1]->{Hour};
 		$parsed{$pubmed_id}->{'pm_pub_minute'}				= @$pub_date[-1]->{Minute};
