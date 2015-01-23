@@ -1,7 +1,7 @@
 #!/usr/bin/env perl
-# Functions for science web tools
+# Functions for pubmed downloader
 
-# Copyright (c) 2013, 2014 Bryan White, bpcwhite@gmail.com
+# Copyright (c) 2013-2015 Bryan White, bpcwhite@gmail.com
 package SWT::Functions;
 use strict;
 use warnings;
@@ -17,7 +17,6 @@ use Params::Validate qw(:all);
 use HTML::LinkExtractor;
 use XML::FeedPP;
 use Class::Date qw(:errors date localdate gmdate now -DateParse -EnvC);
-use Digest::SHA qw(sha1_hex);
 use Data::Dumper;
 use XML::Simple;
 use DateTime;
@@ -29,16 +28,20 @@ my @EXPORT_OK = qw(download_pubmed make_download_path) ;
 sub download_pubmed {
 	my %p = validate(
 				@_, {
-					query	 	=> 1, # optional string of urls; comma separator
-					num_results	=> 1, # optional string of target keys
-					path		=> 1, # optional path
+					query	 		=> 1, # optional string of urls; comma separator
+					num_results		=> 1, # optional string of target keys
+					path			=> 1, # optional path
+					root			=> 1, # root query keyword
+					add_keywords	=> 1, # additional keywords to search abstract, etc. for
 				}
 			);
 	my $query = $p{'query'};
 	my $num_results = $p{'num_results'};
 	my $input_path = $p{'path'};
+	my $root = $p{'root'};
+	my $add_keywords = $p{'add_keywords'};
+	
 	my $max_tries = 2;
-	my $digest = sha1_hex($query);
 
 	my $final_path = '';
 	if ($input_path eq '') {
@@ -46,64 +49,62 @@ sub download_pubmed {
 	} else {
 		$final_path = $input_path;
 	}
-	my $parsed_file = $final_path.'/'.$digest.'_parsed.csv';
-	my $final_file = $final_path.'/'.$digest.'.xml';
+	my $parsed_file = $final_path.'/'.$root.'_parsed.csv';
+	my $final_file = $final_path.'/'.$root.'.xml';
 	
-	unless (-e $final_file) {
-		my $db = 'pubmed';
+	my $db = 'pubmed';
 
-		#assemble the esearch URL
-		my $base = 'http://eutils.ncbi.nlm.nih.gov/entrez/eutils/';
-		my $url = $base . "esearch.fcgi?db=$db&term=$query&usehistory=y&retmax=$num_results";
-		
-		#post the esearch URL
-		my $output = get($url);
-		# print $output."\n";
-		
-		#parse WebEnv and QueryKey
-		my $web = $1 if ($output =~ /<WebEnv>(\S+)<\/WebEnv>/);
-		my $key = $1 if ($output =~ /<QueryKey>(\d+)<\/QueryKey>/);
-		# print $web."\n";
-		# print $key."\n";
-		
-		### include this code for ESearch-ESummary
-		#assemble the esummary URL
-		# $url = $base . "esummary.fcgi?db=$db&query_key=$key&WebEnv=$web";
+	#assemble the esearch URL
+	my $base = 'http://eutils.ncbi.nlm.nih.gov/entrez/eutils/';
+	my $url = $base . "esearch.fcgi?db=$db&term=$query&usehistory=y&retmax=$num_results";
+	
+	#post the esearch URL
+	my $output = get($url);
+	# print $output."\n";
+	
+	#parse WebEnv and QueryKey
+	my $web = $1 if ($output =~ /<WebEnv>(\S+)<\/WebEnv>/);
+	my $key = $1 if ($output =~ /<QueryKey>(\d+)<\/QueryKey>/);
+	# print $web."\n";
+	# print $key."\n";
+	
+	### include this code for ESearch-ESummary
+	#assemble the esummary URL
+	# $url = $base . "esummary.fcgi?db=$db&query_key=$key&WebEnv=$web";
 
-		#post the esummary URL
-		# my $docsums = get($url);
-		# print "$docsums";
+	#post the esummary URL
+	# my $docsums = get($url);
+	# print "$docsums";
 
-		### include this code for ESearch-EFetch
-		#assemble the efetch URL
-		$url = $base . "efetch.fcgi?db=$db&query_key=$key&WebEnv=$web";
-		$url .= "&rettype=abstract&retmode=xml&retmax=$num_results";
-		print $url."\n";
-		
-		my $num_tries = 1;
-		eval {
-			#post the efetch URL
-			my $data = get($url);
-			$num_tries++;
-			open (SCRAPED, '>'.$final_file);
-			if(defined($data)) {
-				# print "$data";
-				$data =~ s/[^[:ascii:]]+//g;
-				print "Scraping to: ".$final_file."\n";
-				print SCRAPED $data;
-			} else {
-				print SCRAPED '';
-			}
-			close (SCRAPED);
-		
-		};
-		if($@) {
-			print "Retrying due to : ".$@."\n";
-			next if $num_tries >= $max_tries;
+	### include this code for ESearch-EFetch
+	#assemble the efetch URL
+	$url = $base . "efetch.fcgi?db=$db&query_key=$key&WebEnv=$web";
+	$url .= "&rettype=abstract&retmode=xml&retmax=$num_results";
+	print $url."\n";
+	
+	my $num_tries = 1;
+	eval {
+		#post the efetch URL
+		my $data = get($url);
+		$num_tries++;
+		open (SCRAPED, '>'.$final_file);
+		if(defined($data)) {
+			# print "$data";
+			$data =~ s/[^[:ascii:]]+//g;
+			print "Scraping to: ".$final_file."\n";
+			print SCRAPED $data;
+		} else {
+			print SCRAPED '';
 		}
+		close (SCRAPED);
+	
+	};
+	if($@) {
+		print "Retrying due to : ".$@."\n";
+		next if $num_tries >= $max_tries;
 	}
 
-	# Scraping done.
+	# Downloading done.
 	
 	my $source = $final_file;
 	my $xml = new XML::Simple;
@@ -115,138 +116,33 @@ sub download_pubmed {
 
 	open (PARSED, '>'.$parsed_file);
 	my $line_i = 0;
-	foreach my $article_key (keys %parsed) {
-		# print "Parsing... ".$article_key."\n";
+	foreach my $article_key (sort keys %parsed) {
+		#print "Parsing... ".$article_key."\n";
+		#exit;
 		if ($line_i == 0) {
-			foreach my $key2 (keys $parsed{$article_key}) {
+			foreach my $key2 (sort keys %{ $parsed{$article_key} }) {
 				print PARSED $key2.",";
+				#print $key2.",";
+
 			}
 		}
 		if ($line_i > 0) {
-			foreach my $key2 (keys $parsed{$article_key}) {
+			foreach my $key2 (sort keys %{ $parsed{$article_key} }) {
+				#print $key2."\n";
+				#exit;
 				if (defined($parsed{$article_key}->{$key2})) {
 					$parsed{$article_key}->{$key2} =~ s/\"//g;
 					$parsed{$article_key}->{$key2} =~ s/\n//g;
 					$parsed{$article_key}->{$key2} = decode_entities($parsed{$article_key}->{$key2});
 					# $parsed{$article_key}->{$key2} =~ s/,/_/g;
 					print PARSED "\"".$parsed{$article_key}->{$key2}."\",";
+					#print "\"".$parsed{$article_key}->{$key2}."\",";
+
 				} else {
 					print PARSED "\"NA\",";
-				}
-			}
-		}
-		$line_i++;
-		print PARSED "\n";
-	}
-	close(PARSED);
-}
+					#print "\"NA\",";
+					#exit;
 
-sub download_gene {
-	my %p = validate(
-				@_, {
-					query	 	=> 1, # optional string of urls; comma separator
-					num_results	=> 1, # optional string of target keys
-					path		=> 1, # optional path
-				}
-			);
-	my $query = $p{'query'};
-	my $num_results = $p{'num_results'};
-	my $input_path = $p{'path'};
-	my $max_tries = 2;
-	my $digest = sha1_hex($query);
-
-	my $final_path = '';
-	if ($input_path eq '') {
-		$final_path = make_download_path();
-	} else {
-		$final_path = $input_path;
-	}
-	my $parsed_file = $final_path.'/'.$digest.'_parsed.csv';
-	my $final_file = $final_path.'/'.$digest.'.xml';
-	
-	unless (-e $final_file) {
-		my $db = 'pubmed';
-
-		#assemble the esearch URL
-		my $base = 'http://eutils.ncbi.nlm.nih.gov/entrez/eutils/';
-		my $url = $base . "esearch.fcgi?db=$db&term=$query&usehistory=y&retmax=$num_results";
-		
-		#post the esearch URL
-		my $output = get($url);
-		# print $output."\n";
-		
-		#parse WebEnv and QueryKey
-		my $web = $1 if ($output =~ /<WebEnv>(\S+)<\/WebEnv>/);
-		my $key = $1 if ($output =~ /<QueryKey>(\d+)<\/QueryKey>/);
-		# print $web."\n";
-		# print $key."\n";
-		
-		### include this code for ESearch-ESummary
-		#assemble the esummary URL
-		# $url = $base . "esummary.fcgi?db=$db&query_key=$key&WebEnv=$web";
-
-		#post the esummary URL
-		# my $docsums = get($url);
-		# print "$docsums";
-
-		### include this code for ESearch-EFetch
-		#assemble the efetch URL
-		$url = $base . "efetch.fcgi?db=$db&query_key=$key&WebEnv=$web";
-		$url .= "&rettype=abstract&retmode=xml&retmax=$num_results";
-		print $url."\n";
-		
-		my $num_tries = 1;
-		eval {
-			#post the efetch URL
-			my $data = get($url);
-			$num_tries++;
-			open (SCRAPED, '>'.$final_file);
-			if(defined($data)) {
-				# print "$data";
-				$data =~ s/[^[:ascii:]]+//g;
-				print "Scraping to: ".$final_file."\n";
-				print SCRAPED $data;
-			} else {
-				print SCRAPED '';
-			}
-			close (SCRAPED);
-		
-		};
-		if($@) {
-			print "Retrying due to : ".$@."\n";
-			next if $num_tries >= $max_tries;
-		}
-	}
-
-	# Scraping done.
-	
-	my $source = $final_file;
-	my $xml = new XML::Simple;
-	my $xml_data = $xml->XMLin($source);
-	# my $scrubber = HTML::Scrubber->new( allow => [ qw[] ] );
-	
-	my $parsed_ref = parse_xml($query, $xml_data);
-	my %parsed = %$parsed_ref;
-
-	open (PARSED, '>'.$parsed_file);
-	my $line_i = 0;
-	foreach my $article_key (keys %parsed) {
-		# print "Parsing... ".$article_key."\n";
-		if ($line_i == 0) {
-			foreach my $key2 (keys $parsed{$article_key}) {
-				print PARSED $key2.",";
-			}
-		}
-		if ($line_i > 0) {
-			foreach my $key2 (keys $parsed{$article_key}) {
-				if (defined($parsed{$article_key}->{$key2})) {
-					$parsed{$article_key}->{$key2} =~ s/\"//g;
-					$parsed{$article_key}->{$key2} =~ s/\n//g;
-					$parsed{$article_key}->{$key2} = decode_entities($parsed{$article_key}->{$key2});
-					# $parsed{$article_key}->{$key2} =~ s/,/_/g;
-					print PARSED "\"".$parsed{$article_key}->{$key2}."\",";
-				} else {
-					print PARSED "\"NA\",";
 				}
 			}
 		}
