@@ -1,7 +1,7 @@
 #!/usr/bin/env perl
 # This script enumerates keywords in a webpage
 
-# Copyright (c) 2013, 2014 Bryan White, bpcwhite@gmail.com
+# Copyright (c) 2013-2015 Bryan White, bpcwhite@gmail.com
 
 use strict;
 use warnings;
@@ -30,7 +30,7 @@ my @query_list = (	'nature[journal]',
 
 # SWTFunctions::parse_clean_doc($url, $output);
 foreach my $query (@query_list) {
-	SWT::Functions::scrape_rss(query => $query, num_results => $num_articles, path => $path);
+	SWT::Functions::download_pubmed(query => $query, num_results => $num_articles, path => $path);
 }
 # SWTFunctions::scrape_rss_eutil();
 
