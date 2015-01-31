@@ -33,6 +33,8 @@ sub download_pubmed {
 					path			=> 1, # optional path
 					root			=> 1, # root query keyword
 					add_keywords	=> 1, # additional keywords to search abstract, etc. for
+					parsed_file		=> 1, # name of output file
+					query_num		=> 1, # query number
 				}
 			);
 	my $query = $p{'query'};
@@ -40,91 +42,97 @@ sub download_pubmed {
 	my $input_path = $p{'path'};
 	my $root = $p{'root'};
 	my $add_keywords = $p{'add_keywords'};
-	
+	my $parsed_file = $p{'parsed_file'};
+	my $query_num = $p{'query_num'};
+
 	my $max_tries = 2;
 
-	my $final_path = '';
-	if ($input_path eq '') {
-		$final_path = make_download_path();
-	} else {
-		$final_path = $input_path;
-	}
-	my $parsed_file = $final_path.'/'.$root.'_parsed.csv';
-	my $final_file = $final_path.'/'.$root.'.xml';
-	
-	my $db = 'pubmed';
+	# my $final_path = '';
+	# if ($input_path eq '') {
+	# 	$final_path = make_download_path();
+	# } else {
+	# 	$final_path = $input_path;
+	# }
+	my $final_file = $root.'.xml';
+	print "Parsing : ".$root."\n";
 
-	#assemble the esearch URL
-	my $base = 'http://eutils.ncbi.nlm.nih.gov/entrez/eutils/';
-	my $url = $base . "esearch.fcgi?db=$db&term=$query&usehistory=y&retmax=$num_results";
-	
-	#post the esearch URL
-	my $output = get($url);
-	# print $output."\n";
-	
-	#parse WebEnv and QueryKey
-	my $web = $1 if ($output =~ /<WebEnv>(\S+)<\/WebEnv>/);
-	my $key = $1 if ($output =~ /<QueryKey>(\d+)<\/QueryKey>/);
-	# print $web."\n";
-	# print $key."\n";
-	
-	### include this code for ESearch-ESummary
-	#assemble the esummary URL
-	# $url = $base . "esummary.fcgi?db=$db&query_key=$key&WebEnv=$web";
+	unless (-f $final_file) {
+		my $db = 'pubmed';
 
-	#post the esummary URL
-	# my $docsums = get($url);
-	# print "$docsums";
+		#assemble the esearch URL
+		my $base = 'http://eutils.ncbi.nlm.nih.gov/entrez/eutils/';
+		my $url = $base . "esearch.fcgi?db=$db&term=$query&usehistory=y&retmax=$num_results";
+		
+		#post the esearch URL
+		my $output = get($url);
+		# print $output."\n";
+		
+		#parse WebEnv and QueryKey
+		my $web = $1 if ($output =~ /<WebEnv>(\S+)<\/WebEnv>/);
+		my $key = $1 if ($output =~ /<QueryKey>(\d+)<\/QueryKey>/);
+		# print $web."\n";
+		# print $key."\n";
+		
+		### include this code for ESearch-ESummary
+		#assemble the esummary URL
+		# $url = $base . "esummary.fcgi?db=$db&query_key=$key&WebEnv=$web";
 
-	### include this code for ESearch-EFetch
-	#assemble the efetch URL
-	$url = $base . "efetch.fcgi?db=$db&query_key=$key&WebEnv=$web";
-	$url .= "&rettype=abstract&retmode=xml&retmax=$num_results";
-	print $url."\n";
-	
-	my $num_tries = 1;
-	eval {
-		#post the efetch URL
-		my $data = get($url);
-		$num_tries++;
-		open (SCRAPED, '>'.$final_file);
-		if(defined($data)) {
-			# print "$data";
-			$data =~ s/[^[:ascii:]]+//g;
-			print "Scraping to: ".$final_file."\n";
-			print SCRAPED $data;
-		} else {
-			print SCRAPED '';
+		#post the esummary URL
+		# my $docsums = get($url);
+		# print "$docsums";
+
+		### include this code for ESearch-EFetch
+		#assemble the efetch URL
+		$url = $base . "efetch.fcgi?db=$db&query_key=$key&WebEnv=$web";
+		$url .= "&rettype=abstract&retmode=xml&retmax=$num_results";
+		print $url."\n";
+		
+		my $num_tries = 1;
+		eval {
+			#post the efetch URL
+			my $data = get($url);
+			$num_tries++;
+			open (SCRAPED, '>'.$final_file);
+			if(defined($data)) {
+				# print "$data";
+				$data =~ s/[^[:ascii:]]+//g;
+				print "Downloading : ".$final_file."\n";
+				print SCRAPED $data;
+			} else {
+				print SCRAPED '';
+			}
+			close (SCRAPED);
+		
+		};
+		if($@) {
+			print "Retrying due to : ".$@."\n";
+			next if $num_tries >= $max_tries;
 		}
-		close (SCRAPED);
-	
-	};
-	if($@) {
-		print "Retrying due to : ".$@."\n";
-		next if $num_tries >= $max_tries;
+
+		# Downloading done.
 	}
 
-	# Downloading done.
-	
 	my $source = $final_file;
 	my $xml = new XML::Simple;
 	my $xml_data = $xml->XMLin($source);
 	# my $scrubber = HTML::Scrubber->new( allow => [ qw[] ] );
 	
-	my $parsed_ref = parse_xml($query, $xml_data);
+	my $parsed_ref = parse_xml($query, $xml_data, $root, $add_keywords);
 	my %parsed = %$parsed_ref;
 
-	open (PARSED, '>'.$parsed_file);
+	# open (PARSED, '>'.$parsed_file);
+	open (PARSED, '>>'.$parsed_file);
 	my $line_i = 0;
 	foreach my $article_key (sort keys %parsed) {
 		#print "Parsing... ".$article_key."\n";
 		#exit;
-		if ($line_i == 0) {
+		if ($query_num == 1 && $line_i == 0) {
 			foreach my $key2 (sort keys %{ $parsed{$article_key} }) {
 				print PARSED $key2.",";
 				#print $key2.",";
 
 			}
+			print PARSED "\n";
 		}
 		if ($line_i > 0) {
 			foreach my $key2 (sort keys %{ $parsed{$article_key} }) {
@@ -145,9 +153,10 @@ sub download_pubmed {
 
 				}
 			}
+			print PARSED "\n";
 		}
 		$line_i++;
-		print PARSED "\n";
+		
 	}
 	close(PARSED);
 }
@@ -156,6 +165,9 @@ sub download_pubmed {
 sub parse_xml{
 	my $query = shift;
 	my $xml_data = shift;
+	my $root = shift;
+	my $add_keywords = shift;
+
 	my %parsed = ();
 	my %months = (	'Jan' => 1, 'Feb' => 2, 'Mar' => 3, 'Apr' => 4, 'May' => 5, 'June' => 6, 'Jun' => 6,
 					'July' => 7, 'Jul' => 7, 'Aug' => 8, 'Sept' => 9, 'Sep' => 9, 'Oct' => 10, 'Nov' => 11, 'Dec' => 12);
@@ -176,8 +188,15 @@ sub parse_xml{
 			$abstract = $e->{MedlineCitation}->{Article}->{Abstract}->{'AbstractText'}->{'content'};
 		} elsif(ref($e->{MedlineCitation}->{Article}->{Abstract}->{'AbstractText'}) eq 'ARRAY') {
 			foreach my $content (@{$e->{MedlineCitation}->{Article}->{Abstract}->{'AbstractText'}}) {
-				if(defined($content->{'content'})) {
-					$abstract .= " ".$content->{'content'};
+				#print Dumper($content);
+				#print ref($content)."\n";
+				
+				if(ref($content) eq '') {
+					$abstract .= " ".$content;
+				} else {
+					if(defined($content->{'content'})) {
+						$abstract .= " ".$content->{'content'};
+					}
 				}
 			}
 		} else {
@@ -290,8 +309,21 @@ sub parse_xml{
 		$parsed{$pubmed_id}->{'pm_pub_status'}				= @$pub_date[-1]->{PubStatus};
 		$parsed{$pubmed_id}->{'pm_pub_hour'}				= @$pub_date[-1]->{Hour};
 		$parsed{$pubmed_id}->{'pm_pub_minute'}				= @$pub_date[-1]->{Minute};
+		$parsed{$pubmed_id}->{'root_query'}					= $root;
+
+		my @add_keywords = split(/,/,$add_keywords);
+
+		# Check additional keywords
+		# foreach my $keyword (@add_keywords) {
+		# 	if($parsed{$pubmed_id}->{'pm_abstract'} =~ m/$keyword) {
+
+		# 	}
+		# 	# $parsed{$pubmed_id}->{'pm_pubtitle'}		
+		# }
+
 	}
 	
+
 	return \%parsed;
 }
 
